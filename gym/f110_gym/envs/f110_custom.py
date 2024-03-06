@@ -105,7 +105,7 @@ class F110_Cust_Env(gym.Env):
     current_obs = None
     render_callbacks = []
 
-    def __init__(self, **kwargs):        
+    def __init__(self, **kwargs):       
         # kwargs extraction
         try:
             self.seed = kwargs['seed']
@@ -222,25 +222,28 @@ class F110_Cust_Env(gym.Env):
         # stateful observations for rendering
         self.render_obs = None
 
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(64,), dtype=np.float32)
-        self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(62,), dtype=np.float64)
+        self.action_space = spaces.Box(low=-1, high=1, shape=(1,2), dtype=np.float64)
 
         self.max_speed = 5
         self.max_steer = 0.4
 
     def normalize_actions(self, actions):
         new_actions = []
+
         for a in actions:
-            speed = a[0]
-            steer = a[1]
+            speed = a[1]
+            steer = a[0]
 
             new_speed = (speed-(-1))*(self.max_speed-0)/(1-(-1)) + 1e-2
 
             new_steer = steer*self.max_steer
 
-            new_actions.append([new_speed,new_steer])
+            new_actions.append([new_steer,new_speed])
+
 
         return np.array(new_actions)
+
 
 
 
@@ -367,15 +370,16 @@ class F110_Cust_Env(gym.Env):
 
         if not self.classic_control:
             action = self.normalize_actions(action)
-
+        
         # call simulation step
         obs = self.sim.step(action)
         obs['lap_times'] = self.lap_times
         obs['lap_counts'] = self.lap_counts
 
+
         F110_Cust_Env.current_obs = obs
 
-        self.render_obs = {
+        ro = {
             'ego_idx': obs['ego_idx'],
             'poses_x': obs['poses_x'],
             'poses_y': obs['poses_y'],
@@ -383,6 +387,7 @@ class F110_Cust_Env(gym.Env):
             'lap_times': obs['lap_times'],
             'lap_counts': obs['lap_counts']
             }
+        
         
         curr_x = obs['poses_x'][self.ego_idx]
         curr_y = obs['poses_y'][self.ego_idx]
@@ -408,7 +413,11 @@ class F110_Cust_Env(gym.Env):
 
         # check done
         done, toggle_list = self._check_done()
-        info = {'checkpoint_done': toggle_list}
+        info = {'checkpoint_done': toggle_list,
+                'render_obs': ro
+                }
+        
+        self.render_obs = ro
 
         if theta > np.pi:
             theta = theta - 2*np.pi
@@ -431,15 +440,20 @@ class F110_Cust_Env(gym.Env):
             state.append(dx)
             state.append(dy)
 
-        state = state[:64]
+        state = state[:62]
+
+        trunc = False
 
         if self.classic_control:
-            return obs, reward, done, info
+            return obs, reward, done, trunc, info
         
+        state = np.array(state)
 
-        return state, reward, done, info
+        print("State shape: ",state.shape)
 
-    def reset(self, poses):
+        return state, reward, done, trunc, info
+
+    def reset(self, poses=None, seed=None,option=None):
         """
         Reset the gym environment by given poses
 
@@ -452,6 +466,10 @@ class F110_Cust_Env(gym.Env):
             done (bool): if the simulation is done
             info (dict): auxillary information dictionary
         """
+        super().reset(seed=seed)
+
+        if poses is None:
+            poses = np.zeros((self.num_agents, 3))
         # reset counters and data members
         self.current_time = 0.0
         self.collisions = np.zeros((self.num_agents, ))
@@ -471,18 +489,10 @@ class F110_Cust_Env(gym.Env):
 
         # get no input observations
         action = np.zeros((self.num_agents, 2))
-        obs, reward, done, info = self.step(action)
-        
-        self.render_obs = {
-            'ego_idx': obs['ego_idx'],
-            'poses_x': obs['poses_x'],
-            'poses_y': obs['poses_y'],
-            'poses_theta': obs['poses_theta'],
-            'lap_times': obs['lap_times'],
-            'lap_counts': obs['lap_counts']
-            }
-        
-        return obs, reward, done, info
+
+        obs, reward, done, _, info = self.step(action)
+
+        return obs, info
 
     # def reset(self):
     #     """
@@ -586,7 +596,7 @@ class F110_Cust_Env(gym.Env):
             from f110_gym.envs.rendering import EnvRenderer
             F110_Cust_Env.renderer = EnvRenderer(WINDOW_W, WINDOW_H)
             F110_Cust_Env.renderer.update_map(self.map_name, self.map_ext)
-            
+        
         F110_Cust_Env.renderer.update_obs(self.render_obs)
 
         for render_callback in F110_Cust_Env.render_callbacks:
