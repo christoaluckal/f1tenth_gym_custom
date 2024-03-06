@@ -276,30 +276,43 @@ def main():
 
     # env = gym.make('f110_gym:f110-v0', map=conf.map_path, map_ext=conf.map_ext, num_agents=1, timestep=0.01, integrator=Integrator.RK4)
     # env.add_render_callback(render_callback)
-    map_config = {
+    map_config_1 = {
         'map_ext': '.png',
-        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/maps/map_15_100_',
-        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/centerline/map_15_100_.csv'
+        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/maps/map_44_1000_',
+        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/centerline/map_44_1000_.csv',
+        'reset_pose': [0.0,0.0,np.pi/5]
     }
 
-    register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=1000)
-    env = gym.make('f110_gym:f110-cust-v0',config=map_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-    env.add_render_callback(render_callback)
+    map_config_2 = {
+        'map_ext': '.png',
+        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/maps/map_7_100_',
+        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/centerline/map_7_100_.csv',
+        'reset_pose': [0.0,0.0,0.0]
+    }
 
-    obs, info = env.reset(np.array([[0,1,np.pi/2]]))
-    # env.render()
+    map_config_3 = {
+        'map_ext': '.png',
+        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/maps/map_15_100_',
+        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/centerline/map_15_100_.csv',
+        'reset_pose': [0.0,0.0,0.0]
+    }
 
-    laptime = 0.0
-    start = time.time()
+    register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
+    env = gym.make('f110_gym:f110-cust-v0',config=map_config_3, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
 
-    while not done:
-        speed, steer = np.random.uniform(-1,1), np.random.uniform(-1,1)
-        # speed, steer = 0,0
-        obs, step_reward, done,_, info = env.step(np.array([[steer, speed]]))
-        laptime += step_reward
-        env.render(mode='human')
-        
-    print('Sim elapsed time:', laptime, 'Real elapsed time:', time.time()-start)
+    # Random
+    # while True:
+    #     obs,info = env.reset()
+    #     done = False
+    #     while not done:
+    #         action = env.action_space.sample()
+    #         obs, reward, done,_, info = env.step(action)
+    #         env.render()
+    # SB3
+    from stable_baselines3 import PPO
+    model = PPO('MlpPolicy', env, verbose=1, tensorboard_log="./ppo_f1tenth_tensorboard/ppo3")
+    model.learn(total_timesteps=1e7)
+
 
 if __name__ == '__main__':
     main()
