@@ -228,6 +228,12 @@ class F110_Cust_Env(gym.Env):
         self.max_speed = 5
         self.max_steer = 0.4
 
+        self.reset_pose = None
+        try:
+            self.reset_pose = map_configs['reset_pose']
+        except:
+            self.reset_pose = [0,0,np.pi/2]
+
     def normalize_actions(self, actions):
         new_actions = []
 
@@ -370,7 +376,7 @@ class F110_Cust_Env(gym.Env):
 
         if not self.classic_control:
             action = self.normalize_actions(action)
-        
+
         # call simulation step
         obs = self.sim.step(action)
         obs['lap_times'] = self.lap_times
@@ -447,9 +453,17 @@ class F110_Cust_Env(gym.Env):
         if self.classic_control:
             return obs, reward, done, trunc, info
         
+        if len(state) != 62:
+            print("State length not 62")
+            while len(state) < 62:
+                state.append(0)
+            
+            while len(state) > 62:
+                state.pop(-1)
+
+        
         state = np.array(state)
 
-        print("State shape: ",state.shape)
 
         return state, reward, done, trunc, info
 
@@ -470,6 +484,10 @@ class F110_Cust_Env(gym.Env):
 
         if poses is None:
             poses = np.zeros((self.num_agents, 3))
+            poses[0][0] = self.reset_pose[0]
+            poses[0][1] = self.reset_pose[1]
+            poses[0][2] = self.reset_pose[2]
+
         # reset counters and data members
         self.current_time = 0.0
         self.collisions = np.zeros((self.num_agents, ))
