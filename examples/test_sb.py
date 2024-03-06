@@ -283,10 +283,10 @@ def main():
     }
 
     register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=1000)
-    env = gym.make('f110-cust-v0',config=map_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+    env = gym.make('f110_gym:f110-cust-v0',config=map_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
     env.add_render_callback(render_callback)
 
-    obs, step_reward, done, info = env.reset(np.array([[0,1,np.pi/2]]))
+    obs, info = env.reset(np.array([[0,1,np.pi/2]]))
     # env.render()
 
     laptime = 0.0
@@ -295,7 +295,7 @@ def main():
     while not done:
         speed, steer = np.random.uniform(-1,1), np.random.uniform(-1,1)
         # speed, steer = 0,0
-        obs, step_reward, done, info = env.step(np.array([[steer, speed]]))
+        obs, step_reward, done,_, info = env.step(np.array([[steer, speed]]))
         laptime += step_reward
         env.render(mode='human')
         

@@ -286,16 +286,19 @@ def main():
     env = gym.make('f110-cust-v0',config=map_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=True)
     env.add_render_callback(render_callback)
 
-    obs, step_reward, done, info = env.reset(np.array([[0,1,np.pi/2]]))
+    obs, info = env.reset(np.array([[0,1,np.pi/2]]))
     # env.render()
 
     laptime = 0.0
     start = time.time()
 
+    done = False
+
     while not done:
         speed, steer = planner.plan(obs['poses_x'][0], obs['poses_y'][0], obs['poses_theta'][0], work['tlad'], work['vgain'])
         # speed, steer = 0,0
-        obs, step_reward, done, info = env.step(np.array([[steer, speed]]))
+        obs, step_reward, done,_, info = env.step(np.array([[steer, speed]]))
+
         laptime += step_reward
         env.render(mode='human')
         
