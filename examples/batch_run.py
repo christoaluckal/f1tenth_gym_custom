@@ -1,15 +1,15 @@
 import multiprocessing as mp
 from subprocess import call
 
-# exps = [1,2,3]
-# save_freqs = [25000,50000,100000]
-# modify_epochs = [50000,100000,200000]
-# total_epochs = [100000,200000,400000]
-
 exps = [1,2,3]
-save_freqs = [25,50,100]
-modify_epochs = [50,100,200]
-total_epochs = [100,200,400]
+save_freqs = [25000,50000,100000]
+modify_epochs = [50000,100000,200000]
+total_epochs = [100000,200000,400000]
+
+# exps = [1,2,3]
+# save_freqs = [25,50,100]
+# modify_epochs = [50,100,200]
+# total_epochs = [100,200,400]
 
 def run_exp(exp):
     call(exp, shell=True)
