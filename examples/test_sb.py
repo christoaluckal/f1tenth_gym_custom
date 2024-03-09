@@ -5,10 +5,115 @@ import gym
 import numpy as np
 from argparse import Namespace
 from gym.envs.registration import register
+import argparse
 
 from numba import njit
 
 from pyglet.gl import GL_POINTS
+
+from stable_baselines3.common.callbacks import BaseCallback,CheckpointCallback,CallbackList
+import torch
+
+
+class CustomCallback(BaseCallback):
+    """
+    A custom callback that derives from ``BaseCallback``.
+
+    :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
+    """
+    def __init__(self, verbose: int = 0, 
+                 config_type=1, 
+                 modify_epoch=1, 
+                 policy_loc="", 
+                 save_freq=1000, 
+                 retain_ratio=0.8):
+        super().__init__(verbose)
+        # Those variables will be accessible in the callback
+        # (they are defined in the base class)
+        # The RL model
+        # self.model = None  # type: BaseAlgorithm
+        # An alias for self.model.get_env(), the environment used for training
+        # self.training_env # type: VecEnv
+        # Number of time the callback was called
+        # self.n_calls = 0  # type: int
+        # num_timesteps = n_envs * n times env.step() was called
+        # self.num_timesteps = 0  # type: int
+        # local and global variables
+        # self.locals = {}  # type: Dict[str, Any]
+        # self.globals = {}  # type: Dict[str, Any]
+        # The logger object, used to report things in the terminal
+        # self.logger # type: stable_baselines3.common.logger.Logger
+        # Sometimes, for event callback, it is useful
+        # to have access to the parent object
+        # self.parent = None  # type: Optional[BaseCallback]
+        self.config_type = config_type
+        self.modify_epoch = modify_epoch
+        self.policy_loc = policy_loc
+        self.save_freq = save_freq
+        self.retain_ratio = retain_ratio
+
+    def _on_training_start(self) -> None:
+        """
+        This method is called before the first rollout starts.
+        """
+        pass
+
+    def _on_rollout_start(self) -> None:
+        """
+        A rollout is the collection of environment interaction
+        using the current policy.
+        This event is triggered before collecting new samples.
+        """
+        pass
+
+    def _on_step(self) -> bool:
+        """
+        This method will be called by the model after each call to `env.step()`.
+
+        For child callback (of an `EventCallback`), this will be called
+        when the event is triggered.
+
+        :return: If the callback returns False, training is aborted early.
+        """
+
+        if self.config_type == 1:
+            if self.n_calls % self.save_freq == 0:
+                params = self.model.policy.state_dict()
+                torch.save(params, self.policy_loc)
+
+        else:
+            try:
+                if self.n_calls % self.modify_epoch == 0:
+                    curr_policy = self.model.policy.state_dict()
+                    tgt_policy = torch.load(self.policy_loc)
+
+                    print("Old Policy:", curr_policy['critic_target.qf0.4.bias'])
+
+                    for k in curr_policy.keys():
+                        curr_policy[k] = curr_policy[k]*self.retain_ratio + tgt_policy[k]*(1-self.retain_ratio)
+                    
+                    self.model.policy.load_state_dict(curr_policy)
+
+                    print("New Policy:", curr_policy['critic_target.qf0.4.bias'])
+            except:
+                pass
+            
+
+        
+        
+        return True
+
+    def _on_rollout_end(self) -> None:
+        """
+        This event is triggered before updating the policy.
+        """
+        pass
+
+    def _on_training_end(self) -> None:
+        """
+        This event is triggered before exiting the `learn()` method.
+        """
+        pass
 
 """
 Planner Helpers
@@ -298,23 +403,45 @@ def main():
     }
 
     register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
-    env = gym.make('f110_gym:f110-cust-v0',config=map_config_1, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
 
-    # Random
-    while True:
-        obs,info = env.reset()
-        done = False
-        while not done:
-            action = env.action_space.sample()
-            obs, reward, done,_, info = env.step(action)
-            env.render()
-            print(reward)
+    if args.config == 1:
+        env = gym.make('f110_gym:f110-cust-v0',config=map_config_1, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+    elif args.config == 2:
+        env = gym.make('f110_gym:f110-cust-v0',config=map_config_2, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
 
-    # SB3
-    # from stable_baselines3 import PPO
-    # model = PPO('MlpPolicy', env, verbose=1, tensorboard_log="./ppo1_f1tenth_tensorboard/")
-    # model.learn(total_timesteps=1e7)
+
+    from stable_baselines3 import PPO,SAC
+
+    retain_string = int(args.retain*100)
+
+    
+    experiment_name = f"{args.config}_{args.car_idx}_{retain_string}_{args.exp}"
+
+
+    model = SAC('MlpPolicy', env, verbose=1, tensorboard_log=f"logs/sac_{experiment_name}")
+
+    if args.base == 0:
+        custom_cb = CustomCallback(config_type=args.config, policy_loc=f"logs/policy_{args.exp}.pth", save_freq=args.save_freq,
+        modify_epoch=args.modify_epoch,retain_ratio=args.retain)
+        model.learn(total_timesteps=args.total_timesteps, callback=custom_cb)
+    
+    else:
+        model.learn(total_timesteps=args.total_timesteps)
+    
 
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Run the f1tenth gym environment')
+    parser.add_argument('--config', type=int, default=1, help='Config to run')
+    parser.add_argument('--car_idx', type=int, default=1, help='Car index to use')
+    parser.add_argument('--base',type=int,default=1,help='Base or custom callback')
+    parser.add_argument('--retain',type=float,default=1,help='Retain ratio for custom callback')
+    parser.add_argument('--exp',type=int,default=1,help='Experiment number')
+    parser.add_argument('--save_freq',type=int,default=1000,help='Save frequency for custom callback')
+    parser.add_argument('--modify_epoch',type=int,default=1,help='Modify epoch for custom callback')
+    parser.add_argument('--total_timesteps',type=int,default=1e6,help='Total timesteps for training')
+
+    args = parser.parse_args()
+
     main()
