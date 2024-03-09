@@ -164,3 +164,6 @@ docs/
 Dockerfile
 setup.py
 LICENSE
+
+# tfevents
+*tfevents*
