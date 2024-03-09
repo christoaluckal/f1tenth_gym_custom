@@ -383,22 +383,22 @@ def main():
     # env.add_render_callback(render_callback)
     map_config_1 = {
         'map_ext': '.png',
-        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/maps/map_44_1000_',
-        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/centerline/map_44_1000_.csv',
+        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/maps/map_44_1000_',
+        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/centerline/map_44_1000_.csv',
         'reset_pose': [0.0,0.0,np.pi/5]
     }
 
     map_config_2 = {
         'map_ext': '.png',
-        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/maps/map_7_100_',
-        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/centerline/map_7_100_.csv',
+        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/maps/map_7_100_',
+        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/centerline/map_7_100_.csv',
         'reset_pose': [0.0,0.0,0.0]
     }
 
     map_config_3 = {
         'map_ext': '.png',
-        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/maps/map_15_100_',
-        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym/gym/f110_gym/unittest/centerline/map_15_100_.csv',
+        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/maps/map_15_100_',
+        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/centerline/map_15_100_.csv',
         'reset_pose': [0.0,0.0,0.0]
     }
 
