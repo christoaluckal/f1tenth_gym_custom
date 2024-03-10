@@ -24,9 +24,12 @@ class CustomCallback(BaseCallback):
     def __init__(self, verbose: int = 0, 
                  config_type=1, 
                  modify_epoch=1, 
-                 policy_loc="", 
+                 easy_policy_loc="",
+                 base_policy_loc="", 
                  save_freq=1000, 
-                 retain_ratio=0.8):
+                 retain_ratio=0.8,
+                 is_baseline=False
+                 ):
         super().__init__(verbose)
         # Those variables will be accessible in the callback
         # (they are defined in the base class)
@@ -48,9 +51,13 @@ class CustomCallback(BaseCallback):
         # self.parent = None  # type: Optional[BaseCallback]
         self.config_type = config_type
         self.modify_epoch = modify_epoch
-        self.policy_loc = policy_loc
+        self.easy_policy_loc = easy_policy_loc
+        self.base_policy_loc = base_policy_loc
         self.save_freq = save_freq
         self.retain_ratio = retain_ratio
+        self.is_baseline = is_baseline
+        self.modified = False
+        self.has_saved = False
 
     def _on_training_start(self) -> None:
         """
@@ -79,24 +86,47 @@ class CustomCallback(BaseCallback):
         if self.config_type == 1:
             if self.n_calls % self.save_freq == 0:
                 params = self.model.policy.state_dict()
-                torch.save(params, self.policy_loc)
+                torch.save(params, self.base_policy_loc)
 
         else:
-            try:
-                if self.n_calls % self.modify_epoch == 0:
-                    curr_policy = self.model.policy.state_dict()
-                    tgt_policy = torch.load(self.policy_loc)
+            # if not self.is_baseline:
+            #     try:
+            #         if self.n_calls % self.modify_epoch == 0:
+            #             curr_policy = self.model.policy.state_dict()
+            #             tgt_policy = torch.load(self.policy_loc)
 
-                    print("Old Policy:", curr_policy['critic_target.qf0.4.bias'])
+            #             print("Old Policy:", curr_policy['critic_target.qf0.4.bias'])
 
-                    for k in curr_policy.keys():
-                        curr_policy[k] = curr_policy[k]*self.retain_ratio + tgt_policy[k]*(1-self.retain_ratio)
-                    
-                    self.model.policy.load_state_dict(curr_policy)
+            #             for k in curr_policy.keys():
+            #                 curr_policy[k] = curr_policy[k]*self.retain_ratio + tgt_policy[k]*(1-self.retain_ratio)
+                        
+            #             self.model.policy.load_state_dict(curr_policy)
 
-                    print("New Policy:", curr_policy['critic_target.qf0.4.bias'])
-            except:
-                pass
+            #             print("New Policy:", curr_policy['critic_target.qf0.4.bias'])
+            #     except:
+            #         pass
+            if not self.is_baseline:
+                try:
+                    if self.n_calls % self.modify_epoch == 0:
+                        if not self.modified:
+                            self.model.policy.load_state_dict(torch.load(self.base_policy_loc))
+                            self.modified = True
+
+                        curr_policy = self.model.policy.state_dict()
+                        tgt_policy = torch.load(self.easy_policy_loc)
+
+                        for k in curr_policy.keys():
+                            curr_policy[k] = curr_policy[k]*self.retain_ratio + tgt_policy[k]*(1-self.retain_ratio)
+                        
+                        self.model.policy.load_state_dict(curr_policy)
+                except:
+                    pass
+
+            else:
+                if not self.has_saved:
+                    self.model.policy.save(self.easy_policy_loc)
+                    self.has_saved = True
+
             
 
         
@@ -421,8 +451,15 @@ def main():
     model = SAC('MlpPolicy', env, verbose=1, tensorboard_log=f"logs/sac_{experiment_name}")
 
     if args.base == 0:
-        custom_cb = CustomCallback(config_type=args.config, policy_loc=f"logs/policy_{args.exp}.pth", save_freq=args.save_freq,
-        modify_epoch=args.modify_epoch,retain_ratio=args.retain)
+        custom_cb = CustomCallback(
+            config_type=args.config, 
+            easy_policy_loc=f"logs/policy_{args.exp}.pth",
+            base_policy_loc=f"logs/base_{args.exp}.pth", 
+            save_freq=args.save_freq,
+            modify_epoch=args.modify_epoch,
+            retain_ratio=args.retain,
+            
+            )
         model.learn(total_timesteps=args.total_timesteps, callback=custom_cb)
     
     else:
