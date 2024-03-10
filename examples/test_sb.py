@@ -450,20 +450,17 @@ def main():
 
     model = SAC('MlpPolicy', env, verbose=1, tensorboard_log=f"logs/sac_{experiment_name}")
 
-    if args.base == 0:
-        custom_cb = CustomCallback(
-            config_type=args.config, 
-            easy_policy_loc=f"logs/policy_{args.exp}.pth",
-            base_policy_loc=f"logs/base_{args.exp}.pth", 
-            save_freq=args.save_freq,
-            modify_epoch=args.modify_epoch,
-            retain_ratio=args.retain,
-            
-            )
-        model.learn(total_timesteps=args.total_timesteps, callback=custom_cb)
-    
-    else:
-        model.learn(total_timesteps=args.total_timesteps)
+    custom_cb = CustomCallback(
+        config_type=args.config, 
+        easy_policy_loc=f"logs/policy_{args.exp}.pth",
+        base_policy_loc=f"logs/base_{args.exp}.pth", 
+        save_freq=args.save_freq,
+        modify_epoch=args.modify_epoch,
+        retain_ratio=args.retain,
+        is_baseline=True if args.base == 1 else False
+        )
+    model.learn(total_timesteps=args.total_timesteps, callback=custom_cb)
+
     
 
 
@@ -480,5 +477,7 @@ if __name__ == '__main__':
     parser.add_argument('--total_timesteps',type=int,default=1e6,help='Total timesteps for training')
 
     args = parser.parse_args()
+
+    print(args)
 
     main()
