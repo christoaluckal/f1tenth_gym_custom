@@ -4,7 +4,7 @@ from subprocess import call
 exps = [1,2,3]
 save_freqs = [50000,50000,50000]
 modify_epochs = [50000,100000,200000]
-total_epochs = [1000001,1000001,1000001]
+total_epochs = [2000001,2000001,2000001]
 
 # exps = [1,2,3]
 # save_freqs = [25,50,100]
@@ -23,11 +23,11 @@ for i in range(3):
     exp_str = " --exp "+ str(e) +" --save_freq " + str(sf) + " --modify_epoch " + str(me) + " --total_timesteps " + str(te)
     
     exp1 = "python3 test_sb.py --config 1 --car_idx 1 --base 0 --retain 1" + exp_str
-    exp2 = "python3 test_sb.py --config 2 --car_idx 2 --base 0 --retain 1" + exp_str
-    exp3 = "python3 test_sb.py --config 2 --car_idx 3 --base 0 --retain 0.95" + exp_str
-    exp4 = "python3 test_sb.py --config 2 --car_idx 4 --base 0 --retain 0.75" + exp_str
-    exp5 = "python3 test_sb.py --config 2 --car_idx 5 --base 0 --retain 0.5" + exp_str
-    exp6 = "python3 test_sb.py --config 2 --car_idx 6 --base 0 --retain 0.25" + exp_str
+    exp2 = "python3 test_sb.py --config 3 --car_idx 2 --base 1 --retain 1" + exp_str
+    exp3 = "python3 test_sb.py --config 3 --car_idx 3 --base 0 --retain 0.95" + exp_str
+    exp4 = "python3 test_sb.py --config 3 --car_idx 4 --base 0 --retain 0.75" + exp_str
+    exp5 = "python3 test_sb.py --config 3 --car_idx 5 --base 0 --retain 0.5" + exp_str
+    exp6 = "python3 test_sb.py --config 3 --car_idx 6 --base 0 --retain 0.25" + exp_str
 
     processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp1, exp2, exp3, exp4, exp5, exp6]]
 

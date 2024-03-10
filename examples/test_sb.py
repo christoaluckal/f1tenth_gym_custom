@@ -86,7 +86,7 @@ class CustomCallback(BaseCallback):
         if self.config_type == 1:
             if self.n_calls % self.save_freq == 0:
                 params = self.model.policy.state_dict()
-                torch.save(params, self.base_policy_loc)
+                torch.save(params, self.easy_policy_loc)
 
         else:
             # if not self.is_baseline:
@@ -124,7 +124,7 @@ class CustomCallback(BaseCallback):
 
             else:
                 if not self.has_saved:
-                    self.model.policy.save(self.easy_policy_loc)
+                    self.model.policy.save(self.base_policy_loc)
                     self.has_saved = True
 
             
@@ -438,7 +438,8 @@ def main():
         env = gym.make('f110_gym:f110-cust-v0',config=map_config_1, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
     elif args.config == 2:
         env = gym.make('f110_gym:f110-cust-v0',config=map_config_2, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-
+    elif args.config == 3:
+        env = gym.make('f110_gym:f110-cust-v0',config=map_config_3, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
 
     from stable_baselines3 import PPO,SAC
 
