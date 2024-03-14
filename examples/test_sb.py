@@ -12,7 +12,10 @@ from numba import njit
 from pyglet.gl import GL_POINTS
 
 from stable_baselines3.common.callbacks import BaseCallback,CheckpointCallback,CallbackList
+from stable_baselines3.common.evaluation import evaluate_policy
 import torch
+from stable_baselines3 import PPO,SAC
+
 
 
 class CustomCallback(BaseCallback):
@@ -28,7 +31,10 @@ class CustomCallback(BaseCallback):
                  base_policy_loc="", 
                  save_freq=1000, 
                  retain_ratio=0.8,
-                 is_baseline=False
+                 is_baseline=False,
+                 policy_names=[],
+                 eval_config=None,
+                 own_policy_name="policy_1"
                  ):
         super().__init__(verbose)
         # Those variables will be accessible in the callback
@@ -58,6 +64,9 @@ class CustomCallback(BaseCallback):
         self.is_baseline = is_baseline
         self.modified = False
         self.has_saved = False
+        self.policy_names = policy_names
+        self.eval_config = eval_config
+        self.own_policy_name = own_policy_name
 
     def _on_training_start(self) -> None:
         """
@@ -83,51 +92,80 @@ class CustomCallback(BaseCallback):
         :return: If the callback returns False, training is aborted early.
         """
 
-        if self.config_type == 1:
-            if self.n_calls % self.save_freq == 0:
-                params = self.model.policy.state_dict()
-                torch.save(params, self.easy_policy_loc)
+        # if self.config_type == 1:
+        #     if self.n_calls % self.save_freq == 0:
+        #         params = self.model.policy.state_dict()
+        #         torch.save(params, self.easy_policy_loc)
 
-        else:
-            # if not self.is_baseline:
-            #     try:
-            #         if self.n_calls % self.modify_epoch == 0:
-            #             curr_policy = self.model.policy.state_dict()
-            #             tgt_policy = torch.load(self.policy_loc)
+        # else:
+        #     if not self.is_baseline:
+        #         try:
+        #             if self.n_calls % self.modify_epoch == 0:
+        #                 if not self.modified:
+        #                     self.model.policy.load_state_dict(torch.load(self.base_policy_loc))
+        #                     self.modified = True
 
-            #             print("Old Policy:", curr_policy['critic_target.qf0.4.bias'])
+        #                 curr_policy = self.model.policy.state_dict()
+        #                 tgt_policy = torch.load(self.easy_policy_loc)
 
-            #             for k in curr_policy.keys():
-            #                 curr_policy[k] = curr_policy[k]*self.retain_ratio + tgt_policy[k]*(1-self.retain_ratio)
+        #                 for k in curr_policy.keys():
+        #                     curr_policy[k] = curr_policy[k]*self.retain_ratio + tgt_policy[k]*(1-self.retain_ratio)
                         
-            #             self.model.policy.load_state_dict(curr_policy)
+        #                 self.model.policy.load_state_dict(curr_policy)
+        #         except:
+        #             pass
 
-            #             print("New Policy:", curr_policy['critic_target.qf0.4.bias'])
-            #     except:
-            #         pass
-            if not self.is_baseline:
-                try:
-                    if self.n_calls % self.modify_epoch == 0:
-                        if not self.modified:
-                            self.model.policy.load_state_dict(torch.load(self.base_policy_loc))
-                            self.modified = True
+        #     else:
+        #         if not self.has_saved:
+        #             self.model.policy.save(self.base_policy_loc)
+        #             self.has_saved = True
 
-                        curr_policy = self.model.policy.state_dict()
-                        tgt_policy = torch.load(self.easy_policy_loc)
+        if self.n_calls % self.save_freq == 0:
+            params = self.model.policy.state_dict()
+            torch.save(params, f"logs/{self.own_policy_name}.pth")
 
-                        for k in curr_policy.keys():
-                            curr_policy[k] = curr_policy[k]*self.retain_ratio + tgt_policy[k]*(1-self.retain_ratio)
-                        
-                        self.model.policy.load_state_dict(curr_policy)
-                except:
-                    pass
+        if self.n_calls % self.modify_epoch == 0:
 
-            else:
-                if not self.has_saved:
-                    self.model.policy.save(self.base_policy_loc)
-                    self.has_saved = True
+            temp_eval_env = gym.make('f110_gym:f110-cust-v0',config=self.eval_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+            temp_model = SAC('MlpPolicy', temp_eval_env,verbose=0)
 
-            
+            eval_results = []
+            policies = [torch.load(f"logs/{self.own_policy_name}.pth")]
+            for policy_name in self.policy_names:
+                if policy_name != self.own_policy_name:
+                    policies.append(torch.load(f"logs/{policy_name}.pth"))
+
+            for pol in policies:
+                temp_model.policy.load_state_dict(pol)
+                mean_reward, std_reward = evaluate_policy(temp_model, temp_eval_env, n_eval_episodes=10)
+                eval_results.append(mean_reward)
+
+            probs = []
+
+            if len(eval_results) > 1:
+                eval_others = eval_results[1:]
+                eval_others_exp = np.exp(eval_others)
+                eval_others_exp_sum = np.sum(eval_others_exp)
+                probs = eval_others_exp/eval_others_exp_sum
+                probs*=(1-self.retain_ratio)
+
+            fin_probs = [self.retain_ratio] + list(probs)
+            print(f"Final probs: {fin_probs}")
+
+            keys = list(policies[0].keys())
+            new_policy = {}
+            for key in keys:
+                new_policy[key] = torch.zeros_like(policies[0][key])
+                for i in range(len(policies)):
+                    new_policy[key] += policies[i][key]*fin_probs[i]
+                
+            self.model.policy.load_state_dict(new_policy)
+                
+                
+
+
+            del temp_model
+            del temp_eval_env
 
         
         
@@ -383,53 +421,37 @@ def main():
     main entry point
     """
 
-    work = {'mass': 3.463388126201571, 'lf': 0.15597534362552312, 'tlad': 0.82461887897713965, 'vgain': 1.375}#0.90338203837889}
-    
-    with open('config_example_map.yaml') as file:
-        conf_dict = yaml.load(file, Loader=yaml.FullLoader)
-    conf = Namespace(**conf_dict)
-
-    planner = PurePursuitPlanner(conf, (0.17145+0.15875),speed=3) #FlippyPlanner(speed=0.2, flip_every=1, steer=10)
-
-    def render_callback(env_renderer):
-        # custom extra drawing function
-
-        e = env_renderer
-
-        # update camera to follow car
-        x = e.cars[0].vertices[::2]
-        y = e.cars[0].vertices[1::2]
-        top, bottom, left, right = max(y), min(y), min(x), max(x)
-        e.score_label.x = left
-        e.score_label.y = top - 700
-        e.left = left - 800
-        e.right = right + 800
-        e.top = top + 800
-        e.bottom = bottom - 800
-
-        planner.render_waypoints(env_renderer)
+    import os
+    map_location = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','gym','f110_gym','unittest')
 
     # env = gym.make('f110_gym:f110-v0', map=conf.map_path, map_ext=conf.map_ext, num_agents=1, timestep=0.01, integrator=Integrator.RK4)
     # env.add_render_callback(render_callback)
     map_config_1 = {
         'map_ext': '.png',
-        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/maps/map_44_1000_',
-        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/centerline/map_44_1000_.csv',
+        'map': os.path.join(map_location,'maps/map_44_1000_'),
+        'waypoints': os.path.join(map_location,'centerline/map_44_1000_.csv'),
         'reset_pose': [0.0,0.0,np.pi/5]
     }
 
     map_config_2 = {
         'map_ext': '.png',
-        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/maps/map_7_100_',
-        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/centerline/map_7_100_.csv',
+        'map': os.path.join(map_location,'maps/map_7_100_'),
+        'waypoints': os.path.join(map_location,'centerline/map_7_100_.csv'),
         'reset_pose': [0.0,0.0,0.0]
     }
 
     map_config_3 = {
         'map_ext': '.png',
-        'map': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/maps/map_15_100_',
-        'waypoints': '/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/gym/f110_gym/unittest/centerline/map_15_100_.csv',
+        'map': os.path.join(map_location,'maps/map_15_100_'),
+        'waypoints': os.path.join(map_location,'centerline/map_15_100_.csv'),
         'reset_pose': [0.0,0.0,0.0]
+    }
+
+    eval_config = {
+        'map_ext': '.png',
+        'map': os.path.join(map_location,'maps/map_44_1000_'),
+        'waypoints': os.path.join(map_location,'centerline/map_44_1000_.csv'),
+        'reset_pose': [0.0,0.0,np.pi/5]
     }
 
     register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
@@ -441,7 +463,7 @@ def main():
     elif args.config == 3:
         env = gym.make('f110_gym:f110-cust-v0',config=map_config_3, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
 
-    from stable_baselines3 import PPO,SAC
+    
 
     retain_string = int(args.retain*100)
 
@@ -458,7 +480,10 @@ def main():
         save_freq=args.save_freq,
         modify_epoch=args.modify_epoch,
         retain_ratio=args.retain,
-        is_baseline=True if args.base == 1 else False
+        is_baseline=True if args.base == 1 else False,
+        policy_names = ["policy_1","policy_3"],
+        eval_config=eval_config,
+        own_policy_name=f"policy_{args.config}"
         )
     model.learn(total_timesteps=args.total_timesteps, callback=custom_cb)
 
@@ -473,8 +498,8 @@ if __name__ == '__main__':
     parser.add_argument('--base',type=int,default=1,help='Base or custom callback')
     parser.add_argument('--retain',type=float,default=1,help='Retain ratio for custom callback')
     parser.add_argument('--exp',type=int,default=1,help='Experiment number')
-    parser.add_argument('--save_freq',type=int,default=1000,help='Save frequency for custom callback')
-    parser.add_argument('--modify_epoch',type=int,default=1,help='Modify epoch for custom callback')
+    parser.add_argument('--save_freq',type=int,default=500,help='Save frequency for custom callback')
+    parser.add_argument('--modify_epoch',type=int,default=1000,help='Modify epoch for custom callback')
     parser.add_argument('--total_timesteps',type=int,default=1e6,help='Total timesteps for training')
 
     args = parser.parse_args()
