@@ -177,7 +177,7 @@ class CustomCallback(BaseCallback):
                     
                 self.model.policy.load_state_dict(new_policy)
 
-                self.modify_epoch *= 1.1
+                self.modify_epoch *= 1.05
                 self.modify_epoch = int(self.modify_epoch)
                 
 
