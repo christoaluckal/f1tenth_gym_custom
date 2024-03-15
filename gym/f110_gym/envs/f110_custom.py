@@ -472,8 +472,8 @@ class F110_Cust_Env(gym.Env):
         
         state = np.array(state)
 
-        if self.is_eval:
-            print(self.steps)
+        # if self.is_eval:
+        #     print(self.steps)
         self.steps +=1
 
 
