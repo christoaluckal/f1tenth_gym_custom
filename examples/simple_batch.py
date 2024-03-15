@@ -5,10 +5,9 @@ def run_exp(exp):
     call(exp, shell=True)
 
 
-e = 1
-sf = 5000
-me = 10000
-te = int(1e6)
+sf = 50000
+me = 100000
+te = int(5e6)
 
 exp_str = " --save_freq " + str(sf) + " --modify_epoch " + str(me) + " --total_timesteps " + str(te)
 
