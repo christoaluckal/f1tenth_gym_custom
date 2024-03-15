@@ -119,53 +119,55 @@ class CustomCallback(BaseCallback):
         #         if not self.has_saved:
         #             self.model.policy.save(self.base_policy_loc)
         #             self.has_saved = True
+        if not self.is_baseline:
+            if self.n_calls % self.save_freq == 0:
+                params = self.model.policy.state_dict()
+                torch.save(params, f"logs/{self.own_policy_name}.pth")
 
-        if self.n_calls % self.save_freq == 0:
-            params = self.model.policy.state_dict()
-            torch.save(params, f"logs/{self.own_policy_name}.pth")
+            if self.n_calls % self.modify_epoch == 0:
 
-        if self.n_calls % self.modify_epoch == 0:
+                temp_eval_env = gym.make('f110_gym:f110-cust-v0',config=self.eval_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False, is_eval=True)
+                temp_model = SAC('MlpPolicy', temp_eval_env,verbose=0)
 
-            temp_eval_env = gym.make('f110_gym:f110-cust-v0',config=self.eval_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-            temp_model = SAC('MlpPolicy', temp_eval_env,verbose=0)
+                print(f"Evaluating for {self.own_policy_name}...")
 
-            eval_results = []
-            policies = [torch.load(f"logs/{self.own_policy_name}.pth")]
-            for policy_name in self.policy_names:
-                if policy_name != self.own_policy_name:
-                    policies.append(torch.load(f"logs/{policy_name}.pth"))
+                eval_results = []
+                policies = [torch.load(f"logs/{self.own_policy_name}.pth")]
+                policy_names = [self.own_policy_name]
+                for policy_name in self.policy_names:
+                    if policy_name != self.own_policy_name:
+                        policy_names.append(policy_name)
+                        policies.append(torch.load(f"logs/{policy_name}.pth"))
 
-            for pol in policies:
-                temp_model.policy.load_state_dict(pol)
-                mean_reward, std_reward = evaluate_policy(temp_model, temp_eval_env, n_eval_episodes=10)
-                eval_results.append(mean_reward)
+                for pol in policies:
+                    temp_model.policy.load_state_dict(pol)
+                    mean_reward, std_reward = evaluate_policy(temp_model, temp_eval_env, n_eval_episodes=10)
+                    eval_results.append(mean_reward)
 
-            probs = []
+                probs = []
 
-            if len(eval_results) > 1:
-                eval_others = eval_results[1:]
-                eval_others_exp = np.exp(eval_others)
-                eval_others_exp_sum = np.sum(eval_others_exp)
-                probs = eval_others_exp/eval_others_exp_sum
-                probs*=(1-self.retain_ratio)
+                if len(eval_results) > 0:
+                    eval_others = eval_results
+                    eval_others_exp = np.exp(eval_others)
+                    eval_others_exp_sum = np.sum(eval_others_exp)
+                    probs = eval_others_exp/eval_others_exp_sum
+                    # probs*=(1-self.retain_ratio)
 
-            fin_probs = [self.retain_ratio] + list(probs)
-            print(f"Final probs: {fin_probs}")
+                fin_probs = list(probs)
+                print(f"Policies: {policy_names}")
+                print(f"Final probs: {fin_probs}")
 
-            keys = list(policies[0].keys())
-            new_policy = {}
-            for key in keys:
-                new_policy[key] = torch.zeros_like(policies[0][key])
-                for i in range(len(policies)):
-                    new_policy[key] += policies[i][key]*fin_probs[i]
-                
-            self.model.policy.load_state_dict(new_policy)
-                
-                
-
-
-            del temp_model
-            del temp_eval_env
+                keys = list(policies[0].keys())
+                new_policy = {}
+                for key in keys:
+                    new_policy[key] = torch.zeros_like(policies[0][key])
+                    for i in range(len(policies)):
+                        new_policy[key] += policies[i][key]*fin_probs[i]
+                    
+                self.model.policy.load_state_dict(new_policy)
+                    
+                del temp_model
+                del temp_eval_env
 
         
         
@@ -471,7 +473,7 @@ def main():
     experiment_name = f"{args.config}_{args.car_idx}_{retain_string}_{args.exp}"
 
 
-    model = SAC('MlpPolicy', env, verbose=1, tensorboard_log=f"logs/sac_{experiment_name}")
+    model = SAC('MlpPolicy', env, verbose=args.verbose, tensorboard_log=f"logs/sac_{experiment_name}")
 
     custom_cb = CustomCallback(
         config_type=args.config, 
@@ -501,6 +503,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_freq',type=int,default=500,help='Save frequency for custom callback')
     parser.add_argument('--modify_epoch',type=int,default=1000,help='Modify epoch for custom callback')
     parser.add_argument('--total_timesteps',type=int,default=1e6,help='Total timesteps for training')
+    parser.add_argument('--verbose',type=int,default=0,help='Verbosity level')
 
     args = parser.parse_args()
 

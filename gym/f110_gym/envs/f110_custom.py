@@ -126,6 +126,11 @@ class F110_Cust_Env(gym.Env):
         # except:
         #     self.map_path = os.path.dirname(os.path.abspath(__file__)) + '/maps/vegas.yaml'
             
+        try:
+            self.is_eval = kwargs['is_eval']
+        except:
+            self.is_eval = False
+            
         map_configs = kwargs['config']
 
         self.map = map_configs['map']
@@ -227,6 +232,9 @@ class F110_Cust_Env(gym.Env):
 
         self.max_speed = 5
         self.max_steer = 0.4
+
+        self.max_steps = 2500
+        self.steps = 0
 
         self.reset_pose = None
         try:
@@ -332,7 +340,7 @@ class F110_Cust_Env(gym.Env):
             if self.toggle_list[i] < 4:
                 self.lap_times[i] = self.current_time
         
-        done = (self.collisions[self.ego_idx]) or np.all(self.toggle_list >= 2)
+        done = (self.collisions[self.ego_idx]) or np.all(self.toggle_list >= 2) or self.steps >= self.max_steps
 
         return bool(done), self.toggle_list >= 4
 
@@ -464,6 +472,10 @@ class F110_Cust_Env(gym.Env):
         
         state = np.array(state)
 
+        if self.is_eval:
+            print(self.steps)
+        self.steps +=1
+
 
         return state, reward, done, trunc, info
 
@@ -504,6 +516,8 @@ class F110_Cust_Env(gym.Env):
 
         # call reset to simulator
         self.sim.reset(poses)
+
+        self.steps = 0
 
         # get no input observations
         action = np.zeros((self.num_agents, 2))
