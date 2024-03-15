@@ -176,6 +176,9 @@ class CustomCallback(BaseCallback):
                         new_policy[key] += policies[i][key]*fin_probs[i]
                     
                 self.model.policy.load_state_dict(new_policy)
+
+                self.modify_epoch *= 1.1
+                self.modify_epoch = int(self.modify_epoch)
                 
 
         
