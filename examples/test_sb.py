@@ -97,7 +97,6 @@ class CustomCallback(BaseCallback):
 
         :return: If the callback returns False, training is aborted early.
         """
-
         # if self.config_type == 1:
         #     if self.n_calls % self.save_freq == 0:
         #         params = self.model.policy.state_dict()
@@ -177,7 +176,7 @@ class CustomCallback(BaseCallback):
                     
                 self.model.policy.load_state_dict(new_policy)
 
-                self.modify_epoch *= 1.05
+                self.modify_epoch *= 1.0
                 self.modify_epoch = int(self.modify_epoch)
                 
 
@@ -430,6 +429,23 @@ class FlippyPlanner:
         return self.speed, self.steer
 
 
+def render_callback(env_renderer):
+    # custom extra drawing function
+
+    e = env_renderer
+
+    # update camera to follow car
+    x = e.cars[0].vertices[::2]
+    y = e.cars[0].vertices[1::2]
+    top, bottom, left, right = max(y), min(y), min(x), max(x)
+    e.score_label.x = left
+    e.score_label.y = top - 700
+    e.left = left - 800
+    e.right = right + 800
+    e.top = top + 800
+    e.bottom = bottom - 800
+
+
 def main():
     """
     main entry point
@@ -471,13 +487,12 @@ def main():
     register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
 
     if args.config == 1:
-        env = gym.make('f110_gym:f110-cust-v0',config=map_config_1, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+        env = gym.make('f110_gym:f110-cust-v0',config=map_config_1, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False,render_mode='human')
     elif args.config == 2:
         env = gym.make('f110_gym:f110-cust-v0',config=map_config_2, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
     elif args.config == 3:
         env = gym.make('f110_gym:f110-cust-v0',config=map_config_3, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-
-    
+        
 
     retain_string = int(args.retain*100)
 
