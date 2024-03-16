@@ -628,16 +628,16 @@ class F110_Cust_Env(gym.Env):
             from f110_gym.envs.rendering import EnvRenderer
             F110_Cust_Env.renderer = EnvRenderer(WINDOW_W, WINDOW_H)
             F110_Cust_Env.renderer.update_map(self.map_name, self.map_ext)
-        
-        F110_Cust_Env.renderer.update_obs(self.render_obs)
+        if self.render_obs is not None:
+            F110_Cust_Env.renderer.update_obs(self.render_obs)
 
-        for render_callback in F110_Cust_Env.render_callbacks:
-            render_callback(F110_Cust_Env.renderer)
-        
-        F110_Cust_Env.renderer.dispatch_events()
-        F110_Cust_Env.renderer.on_draw()
-        F110_Cust_Env.renderer.flip()
-        if mode == 'human':
-            time.sleep(0.005)
-        elif mode == 'human_fast':
-            pass
+            for render_callback in F110_Cust_Env.render_callbacks:
+                render_callback(F110_Cust_Env.renderer)
+            
+            F110_Cust_Env.renderer.dispatch_events()
+            F110_Cust_Env.renderer.on_draw()
+            F110_Cust_Env.renderer.flip()
+            if mode == 'human':
+                time.sleep(0.005)
+            elif mode == 'human_fast':
+                pass
