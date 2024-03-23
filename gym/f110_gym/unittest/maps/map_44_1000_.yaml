@@ -1,6 +1,0 @@
-image: map_44_1000_.pgm
-resolution: 0.062500
-origin: [-50.229585951941935,-49.02354982807165, 0.000000]
-negate: 0
-occupied_thresh: 0.45
-free_thresh: 0.196
