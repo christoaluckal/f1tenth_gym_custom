@@ -10,7 +10,7 @@ sf = 10000
 me = 20000
 te = int(5e5)
 
-exp_str = "--is_lab True --ws True --ws_count 3 --save_freq " + str(sf) + " --modify_epoch " + str(me) + " --total_timesteps " + str(te)
+exp_str = " --is_lab True --ws True --ws_count 3 --save_freq " + str(sf) + " --modify_epoch " + str(me) + " --total_timesteps " + str(te)
 
 for r in ratios:
     exp1 = "python3 test_sb.py --config 1 --car_idx 1 --base 0 --retain " + str(r[0]) + exp_str  +" --exp 1 --verbose 1" 
