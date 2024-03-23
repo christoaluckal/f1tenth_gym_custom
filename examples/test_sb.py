@@ -202,6 +202,12 @@ def weighedCombination(
         maps = pickle.load(f)
         
     configs = maps
+    
+    if args.is_lab:
+        for i in configs:
+            i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christo/Developer/thesis/f1tenth_gym_custom/examples')
+            i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christo/Developer/thesis/f1tenth_gym_custom/examples')
+    
     eval_config = configs[0]
     current_config = configs[1:][args.config-1]
     
@@ -256,6 +262,7 @@ def main():
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Run the f1tenth gym environment')
+    parser.add_argument('--is_lab', type=bool, default=False, help='Is lab or not')
     parser.add_argument('--config', type=int, default=1, help='Config to run')
     parser.add_argument('--car_idx', type=int, default=1, help='Car index to use')
     parser.add_argument('--base',type=int,default=1,help='Base or custom callback')
