@@ -98,6 +98,7 @@ class WeightedUpdate(BaseCallback):
         :return: If the callback returns False, training is aborted early.
         """
         if not self.is_baseline:
+            print(f"{self.own_policy_name} - {self.n_calls}")
             if self.n_calls % self.save_freq == 0:
                 params = self.model.policy.state_dict()
                 torch.save(params, f"logs/{self.own_policy_name}.pth")
@@ -186,8 +187,7 @@ def render_callback(env_renderer):
     e.bottom = bottom - 800
 
 def weighedCombination(
-    policies=["policy_1"],
-    eval_config=None,
+    policies=None,
     exp=1,
     save_freq=1000,
     modify_epoch=1000,
@@ -195,94 +195,62 @@ def weighedCombination(
     is_baseline=False,
     own_policy_name="policy_1"
     ):
-    # custom_cb = WeightedUpdate(
-    #     config_type=args.config, 
-    #     easy_policy_loc=f"logs/policy_{args.exp}.pth",
-    #     base_policy_loc=f"logs/base_{args.exp}.pth", 
-    #     save_freq=args.save_freq,
-    #     modify_epoch=args.modify_epoch,
-    #     retain_ratio=args.retain,
-    #     is_baseline=True if args.base == 1 else False,
-    #     policy_names = ["policy_1","policy_2","policy_3"],
-    #     eval_config=eval_config,
-    #     own_policy_name=f"policy_{args.config}"
-    #     )
-    weighted_cb = WeightedUpdate(
-        config_type=exp, 
-        easy_policy_loc=f"logs/policy_{exp}.pth",
-        base_policy_loc=f"logs/base_{exp}.pth", 
-        save_freq=save_freq,
+
+    
+    import os
+    import pickle
+    with open("maps.pkl","rb") as f:
+        maps = pickle.load(f)
+        
+    configs = maps
+    eval_config = configs[0]
+    current_config = configs[1:][args.config-1]
+    
+    custom_cb = WeightedUpdate(
+        verbose=args.verbose,
+        config_type=args.config,
         modify_epoch=modify_epoch,
+        easy_policy_loc="",
+        base_policy_loc="",
+        save_freq=save_freq,
         retain_ratio=retain_ratio,
         is_baseline=is_baseline,
-        policy_names = policies,
+        policy_names=policies,
         eval_config=eval_config,
         own_policy_name=own_policy_name
         )
     
-    return weighted_cb
+    
+    register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
+
+    
+    env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False) 
+    retain_string = int(args.retain*100)
+    experiment_name = f"{args.config}_{args.car_idx}_{retain_string}_{args.exp}"
+    
+    # architecture = [256,256,256]
+    # model = SAC('MlpPolicy', env, verbose=args.verbose, tensorboard_log=f"logs/sac_{experiment_name}", policy_kwargs=dict(net_arch=architecture))
+
+    model = SAC('MlpPolicy', env, verbose=args.verbose, tensorboard_log=f"logs/sac_{experiment_name}")
+    
+    model.learn(total_timesteps=args.total_timesteps, callback=custom_cb)
+    
 
 def main():
     """
     main entry point
     """
 
-    import os
-    import matplotlib.pyplot as plt
-    map_location = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','gym','f110_gym','unittest')
-
-    from f110_gym.unittest.collate import getConfigList
-    
-    config_dict = getConfigList(csv_f=os.path.join(map_location,'generated.csv'))
-    eval_tr = config_dict['tr'][0]
-    trs = config_dict['tr'][1:]
-    scale = config_dict['scale']
-    
-
-    configs = []
-    eval_config = {
-        'map_ext': '.png',
-        'map': os.path.join(map_location,f'maps/map_{eval_tr}_{scale}'),
-        'waypoints': os.path.join(map_location,f'centerline/map_{eval_tr}_{scale}.csv'),
-        'reset_pose': [0.0,0.0,np.pi/2]
-    }
-    
-    for t in trs:
-        map_config = {
-            'map_ext': '.png',
-            'map': os.path.join(map_location,f'maps/map_{t}_{scale}'),
-            'waypoints': os.path.join(map_location,f'centerline/map_{t}_{scale}.csv'),
-            'reset_pose': [0.0,0.0,np.pi/2]
-        }
-        plt.imshow(plt.imread(map_config['map']+'.png'))
-        plt.show()
-        yes = input("Is this the map you want to use? (y/n): ")
-        if yes == 'y':
-            configs.append(map_config)
-        plt.close()    
-    print(configs)
-    exit(1)
-    
-    
-
-    register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
-
-    
-    env = gym.make('f110_gym:f110-cust-v0',config=configs[args.config-1], num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-        
-
-    retain_string = int(args.retain*100)
-
-    
-    experiment_name = f"{args.config}_{args.car_idx}_{retain_string}_{args.exp}"
-    
-    architecture = [256,256,256]
-    
-    
-    model = SAC('MlpPolicy', env, verbose=args.verbose, tensorboard_log=f"logs/sac_{experiment_name}", policy_kwargs=dict(net_arch=architecture))
-
-    
-    model.learn(total_timesteps=args.total_timesteps, callback=custom_cb)
+    if args.ws:
+        weighedCombination(
+            policies=[f"policy_{i}" for i in range(1,args.ws_count+1)],
+            exp=args.exp,
+            save_freq=args.save_freq,
+            modify_epoch=args.modify_epoch,
+            retain_ratio=args.retain,
+            is_baseline=args.base,
+            own_policy_name=f"policy_{args.config}"
+            )
 
     
 
@@ -294,10 +262,13 @@ if __name__ == '__main__':
     parser.add_argument('--base',type=int,default=1,help='Base or custom callback')
     parser.add_argument('--retain',type=float,default=1,help='Retain ratio for custom callback')
     parser.add_argument('--exp',type=int,default=1,help='Experiment number')
-    parser.add_argument('--save_freq',type=int,default=500,help='Save frequency for custom callback')
-    parser.add_argument('--modify_epoch',type=int,default=1000,help='Modify epoch for custom callback')
+    parser.add_argument('--save_freq',type=int,default=100,help='Save frequency for custom callback')
+    parser.add_argument('--modify_epoch',type=int,default=200,help='Modify epoch for custom callback')
     parser.add_argument('--total_timesteps',type=int,default=1e6,help='Total timesteps for training')
     parser.add_argument('--verbose',type=int,default=0,help='Verbosity level')
+    parser.add_argument('--ws',type=bool,default=False,help='Use weighted sum or not')
+    parser.add_argument('--ws_count',type=int,default=1,help='Number of policies to use in weighted sum')
 
     args = parser.parse_args()
+    print(args)
     main()
