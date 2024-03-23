@@ -1,6 +1,7 @@
 import numpy as np
 import argparse
 from scipy.interpolate import CubicSpline
+import math
 
 def averageKappa(waypoints, window_size=50):
         
@@ -38,7 +39,7 @@ def main():
     from f110_gym.unittest.collate import getConfigList
     
     while True:
-        config_dict = getConfigList(csv_f=os.path.join(map_location,'generated.csv'),scale_search=2.0)
+        config_dict = getConfigList(csv_f=os.path.join(map_location,'generated.csv'))
         trs = config_dict['tr']
         scale = config_dict['scale']
         
@@ -62,16 +63,6 @@ def main():
             plt.close()
             
         print(f"Total number of maps: {len(configs)}")
-        # Arrange in nxn square grid
-        n = int(np.ceil(np.sqrt(len(configs))))
-        fig, axs = plt.subplots(n,n,figsize=(20,20))
-        for i,config in enumerate(configs):
-            ax = axs[i//n,i%n]
-            ax.imshow(plt.imread(config['map']+'.png'))
-            ax.set_title(f"Map {i}")
-        
-        plt.show()
-        
         y = input("Are you satisfied with the maps? (y/n): ")
         if y == 'y':
             break
@@ -86,27 +77,44 @@ def main():
     # sort by curvature
     curvatures = sorted(curvatures,key=lambda x: x[1])
     
-    print("Sorted maps by curvature: ")
-    for i,c in curvatures:
-        print(f"Map {i}: Kappa: {c}")
+    n = int(math.ceil(len(curvatures)**0.5))
     
-    selected_maps = [2,7,6,5]
+    fig, axs = plt.subplots(n,n,figsize=(15,15))
+    for i,_ in enumerate(curvatures):
+        ax = axs[i//n,i%n]
+        ax.imshow(plt.imread(configs[curvatures[i][0]]['map']+'.png'))
+        ax.set_title(f"Map {curvatures[i][0]}: Kappa {curvatures[i][1]}")
+
+        
+    plt.show()
+    
+    selected_maps = [0,1,3,2]
     
     final_configs = [configs[i] for i in selected_maps]
     
     print("Selected maps: ")
     for i,config in enumerate(final_configs):
         print(f"Map {i}: {config['map']}")
-    
-    n = int(np.ceil(np.sqrt(len(final_configs))))
-    fig, axs = plt.subplots(n,n,figsize=(20,20))
+        
+    n = int(math.ceil(len(final_configs)**0.5))
+    fig, axs = plt.subplots(n,n,figsize=(15,15))
     for i,config in enumerate(final_configs):
         ax = axs[i//n,i%n]
         ax.imshow(plt.imread(config['map']+'.png'))
         ax.set_title(f"Map {i}")
         
     plt.show()
-            
+    
+    print(final_configs)
+    
+    import pickle
+    
+    with open('maps.pkl','wb') as f:
+        pickle.dump(final_configs,f)
+    
+    
+    
+
 
         
     
