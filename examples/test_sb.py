@@ -98,7 +98,6 @@ class WeightedUpdate(BaseCallback):
         :return: If the callback returns False, training is aborted early.
         """
         if not self.is_baseline:
-            print(f"{self.own_policy_name} - {self.n_calls}")
             if self.n_calls % self.save_freq == 0:
                 params = self.model.policy.state_dict()
                 torch.save(params, f"logs/{self.own_policy_name}.pth")
