@@ -167,3 +167,7 @@ LICENSE
 
 # tfevents
 *tfevents*
+*.csv
+*.png
+*.pgm
+*.yaml
