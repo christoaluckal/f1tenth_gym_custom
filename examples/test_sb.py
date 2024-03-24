@@ -209,7 +209,7 @@ def weighedCombination(
             i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
     
     eval_config = configs[0]
-    testing_config = configs[1:]
+    testing_config = [configs[3],configs[1],configs[2]]
     current_config = testing_config[args.config-1]
     
     custom_cb = WeightedUpdate(
