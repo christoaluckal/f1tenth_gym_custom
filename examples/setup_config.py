@@ -107,10 +107,10 @@ def main():
     
     print(final_configs)
     
-    import pickle
+    # import pickle
     
-    with open('maps.pkl','wb') as f:
-        pickle.dump(final_configs,f)
+    # with open('maps.pkl','wb') as f:
+    #     pickle.dump(final_configs,f)
     
     
     
