@@ -230,7 +230,7 @@ class F110_Cust_Env(gym.Env):
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(62,), dtype=np.float64)
         self.action_space = spaces.Box(low=-1, high=1, shape=(1,2), dtype=np.float64)
 
-        self.max_speed = 5
+        self.max_speed = 20
         self.max_steer = 0.4
 
         self.max_steps = 2500
