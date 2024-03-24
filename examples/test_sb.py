@@ -18,6 +18,12 @@ import torch
 from stable_baselines3 import PPO,SAC
 from torch.utils.tensorboard import SummaryWriter
 
+import yaml
+
+with open("device.yaml") as f:
+    device = yaml.load(f, Loader=yaml.FullLoader)
+    
+is_lab = device['is_lab']
 
 
 class WeightedUpdate(BaseCallback):
@@ -192,7 +198,8 @@ def weighedCombination(
     modify_epoch=1000,
     retain_ratio=0.8,
     is_baseline=False,
-    own_policy_name="policy_1"
+    own_policy_name="policy_1",
+    from_pretrained=False
     ):
 
     
@@ -203,13 +210,14 @@ def weighedCombination(
         
     configs = maps
     
-    if args.is_lab:
+    if is_lab:
+        print("Using lab configs")
         for i in configs:
             i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
             i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
     
     eval_config = configs[0]
-    testing_config = [configs[3],configs[1],configs[2]]
+    testing_config = configs[1:]
     current_config = testing_config[args.config-1]
     
     custom_cb = WeightedUpdate(
@@ -240,8 +248,43 @@ def weighedCombination(
 
     model = SAC('MlpPolicy', env, verbose=args.verbose, tensorboard_log=f"logs/sac_{experiment_name}")
     
+    if from_pretrained:
+        print(f"Loading from pretrained model: logs/baseline_{args.config}.pth")
+        model.policy.load_state_dict(torch.load(f"logs/baseline_{args.config}.pth"))
+    
     model.learn(total_timesteps=args.total_timesteps, callback=custom_cb)
     
+def simple_run():
+    import os
+    import pickle
+    with open("maps.pkl","rb") as f:
+        maps = pickle.load(f)
+        
+    configs = maps
+    
+    if not os.path.exists("logs"):
+        os.makedirs("logs",exist_ok=True)
+    
+    if args.is_lab:
+        for i in configs:
+            i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
+            i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
+    
+
+    testing_config = configs[1:]
+    current_config = testing_config[args.config-1]
+    
+    register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
+
+    
+    env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False) 
+    retain_string = int(args.retain*100)    
+    model = SAC('MlpPolicy', env, verbose=args.verbose)
+    
+    model.learn(total_timesteps=args.total_timesteps)
+    policy = model.policy
+    torch.save(policy.state_dict(), f"logs/baseline_{args.config}.pth")
+
 
 def main():
     """
@@ -256,8 +299,12 @@ def main():
             modify_epoch=args.modify_epoch,
             retain_ratio=args.retain,
             is_baseline=args.base,
-            own_policy_name=f"policy_{args.config}"
+            own_policy_name=f"policy_{args.config}",
+            from_pretrained=args.from_pretrained
             )
+        
+    else:
+        simple_run()
 
     
 
@@ -276,6 +323,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose',type=int,default=0,help='Verbosity level')
     parser.add_argument('--ws',type=bool,default=False,help='Use weighted sum or not')
     parser.add_argument('--ws_count',type=int,default=1,help='Number of policies to use in weighted sum')
+    parser.add_argument('--from_pretrained',type=bool,default=False,help='Load from pretrained model')
 
     args = parser.parse_args()
     print(args)
