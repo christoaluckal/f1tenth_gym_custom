@@ -209,7 +209,8 @@ def weighedCombination(
             i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
     
     eval_config = configs[0]
-    current_config = configs[1:][args.config-1]
+    testing_config = configs[1:]
+    current_config = testing_config[args.config-1]
     
     custom_cb = WeightedUpdate(
         verbose=args.verbose,
@@ -230,6 +231,7 @@ def weighedCombination(
 
     
     env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False) 
+    env.add_render_callback(render_callback)
     retain_string = int(args.retain*100)
     experiment_name = f"{args.config}_{args.car_idx}_{retain_string}_{args.exp}"
     

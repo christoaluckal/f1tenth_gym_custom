@@ -56,10 +56,14 @@ def main():
     
     if args.test:
         env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-        env.reset()
+        obs = env.reset()
         while True:
             try:
+                action = env.action_space.sample()
+                obs, reward, done,trunc, info = env.step(action)
                 env.render(mode='human')
+                if done:
+                    obs = env.reset()    
             except KeyboardInterrupt:
                 break
         return
