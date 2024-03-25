@@ -15,9 +15,9 @@ exp_str = " --from_pretrained True --ws True --ws_count 3 --save_freq " + str(sf
 
 for r in ratios:
     exp_counter += 1
-    exp1 = "python3 test_sb.py --config 1 --car_idx 1 --base 0 --retain " + str(r[0]) + exp_str  +" --exp 1 " + str(exp_counter) +" --verbose 1" 
-    exp3 = "python3 test_sb.py --config 2 --car_idx 3 --base 0 --retain " + str(r[1]) + exp_str +" --exp 3 " + str(exp_counter) +" --verbose 1"
-    exp5 = "python3 test_sb.py --config 3 --car_idx 5 --base 0 --retain " + str(r[2]) + exp_str +" --exp 5 " + str(exp_counter) +" --verbose 1"
+    exp1 = "python3 test_sb.py --config 1 --car_idx 1 --base 0 --retain " + str(r[0]) + exp_str  +" --exp " + str(exp_counter) +" --verbose 1" 
+    exp3 = "python3 test_sb.py --config 2 --car_idx 3 --base 0 --retain " + str(r[1]) + exp_str +" --exp " + str(exp_counter) +" --verbose 1"
+    exp5 = "python3 test_sb.py --config 3 --car_idx 5 --base 0 --retain " + str(r[2]) + exp_str +" --exp " + str(exp_counter) +" --verbose 1"
     processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp1,exp3,exp5]]
     try:
         for p in processes:
