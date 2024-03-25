@@ -42,7 +42,8 @@ class WeightedUpdate(BaseCallback):
                  is_baseline=False,
                  policy_names=[],
                  eval_config=None,
-                 own_policy_name="policy_1"
+                 own_policy_name="policy_1",
+                 exp="1"
                  ):
         super().__init__(verbose)
         # Those variables will be accessible in the callback
@@ -79,6 +80,7 @@ class WeightedUpdate(BaseCallback):
         self.temp_eval_env = gym.make('f110_gym:f110-cust-v0',config=self.eval_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False, is_eval=True)
         self.temp_eval_env = Monitor(self.temp_eval_env)
         self.temp_model = SAC('MlpPolicy', self.temp_eval_env,verbose=0)
+        self.exp = exp
 
     def _on_training_start(self) -> None:
         """
@@ -144,7 +146,7 @@ class WeightedUpdate(BaseCallback):
                 for i in range(len(policy_names)):
                     probabilities[policy_names[i]] = fin_probs[i]
 
-                self.writer.add_scalars(f'probabilities_{self.own_policy_name}', probabilities, self.n_calls)
+                self.writer.add_scalars(f'probabilities_{self.own_policy_name}_{self.exp}', probabilities, self.n_calls)
 
                 keys = list(policies[0].keys())
                 new_policy = {}
@@ -193,7 +195,7 @@ def render_callback(env_renderer):
 
 def weighedCombination(
     policies=None,
-    exp=1,
+    exp="1",
     save_freq=1000,
     modify_epoch=1000,
     retain_ratio=0.8,
@@ -231,7 +233,8 @@ def weighedCombination(
         is_baseline=is_baseline,
         policy_names=policies,
         eval_config=eval_config,
-        own_policy_name=own_policy_name
+        own_policy_name=own_policy_name,
+        exp=args.exp
         )
     
     
