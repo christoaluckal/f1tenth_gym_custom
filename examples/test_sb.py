@@ -171,6 +171,8 @@ class WeightedUpdate(BaseCallback):
                             new_policy[key] = torch.zeros_like(policies[0][key])
                             for i in range(len(policies)):
                                 new_policy[key] += policies[i][key]*fin_probs[i]
+                        else:
+                            new_policy[key] = policies[0][key]
                     
                 self.model.policy.load_state_dict(new_policy)
 
