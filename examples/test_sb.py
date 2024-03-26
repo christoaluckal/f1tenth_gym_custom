@@ -43,7 +43,8 @@ class WeightedUpdate(BaseCallback):
                  policy_names=[],
                  eval_config=None,
                  own_policy_name="policy_1",
-                 exp="1"
+                 exp="1",
+                 mod_type="both"
                  ):
         super().__init__(verbose)
         # Those variables will be accessible in the callback
@@ -81,6 +82,7 @@ class WeightedUpdate(BaseCallback):
         self.temp_eval_env = Monitor(self.temp_eval_env)
         self.temp_model = SAC('MlpPolicy', self.temp_eval_env,verbose=0)
         self.exp = exp
+        self.mod_type = mod_type
 
     def _on_training_start(self) -> None:
         """
@@ -128,17 +130,26 @@ class WeightedUpdate(BaseCallback):
                     eval_results.append(mean_reward)
 
                 probs = []
+                if self.retain_ratio > 0:
+                    if len(eval_results) > 1:
+                        eval_others = eval_results[1:]
+                        eval_others_exp = np.exp(eval_others)
+                        eval_others_exp_sum = np.sum(eval_others_exp)
+                        probs = eval_others_exp/eval_others_exp_sum
+                        probs*=(1-self.retain_ratio)
 
-                if len(eval_results) > 1:
-                    eval_others = eval_results[1:]
+                    fin_probs = [self.retain_ratio] + list(probs)
+                    print(f"Policies: {policy_names}")
+                    print(f"Final probs: {fin_probs}")
+                else:
+                    eval_others = eval_results
                     eval_others_exp = np.exp(eval_others)
                     eval_others_exp_sum = np.sum(eval_others_exp)
                     probs = eval_others_exp/eval_others_exp_sum
-                    probs*=(1-self.retain_ratio)
-
-                fin_probs = [self.retain_ratio] + list(probs)
-                print(f"Policies: {policy_names}")
-                print(f"Final probs: {fin_probs}")
+                    
+                    fin_probs = list(probs)
+                    print(f"Policies: {policy_names}")
+                    print(f"Final probs: {fin_probs}")
 
                 probabilities = {
                     
@@ -151,9 +162,15 @@ class WeightedUpdate(BaseCallback):
                 keys = list(policies[0].keys())
                 new_policy = {}
                 for key in keys:
-                    new_policy[key] = torch.zeros_like(policies[0][key])
-                    for i in range(len(policies)):
-                        new_policy[key] += policies[i][key]*fin_probs[i]
+                    if self.mod_type == "both":
+                        new_policy[key] = torch.zeros_like(policies[0][key])
+                        for i in range(len(policies)):
+                            new_policy[key] += policies[i][key]*fin_probs[i]
+                    else:
+                        if self.mod_type in key:
+                            new_policy[key] = torch.zeros_like(policies[0][key])
+                            for i in range(len(policies)):
+                                new_policy[key] += policies[i][key]*fin_probs[i]
                     
                 self.model.policy.load_state_dict(new_policy)
 
@@ -201,7 +218,8 @@ def weighedCombination(
     retain_ratio=0.8,
     is_baseline=False,
     own_policy_name="policy_1",
-    from_pretrained=False
+    from_pretrained=False,
+    mod_type="both"
     ):
 
     
@@ -234,7 +252,8 @@ def weighedCombination(
         policy_names=policies,
         eval_config=eval_config,
         own_policy_name=own_policy_name,
-        exp=args.exp
+        exp=args.exp,
+        mod_type=mod_type
         )
     
     
@@ -243,7 +262,11 @@ def weighedCombination(
     
     env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False) 
     env.add_render_callback(render_callback)
-    retain_string = int(args.retain*100)
+    
+    if args.retain > 0:
+        retain_string = int(args.retain*100)
+    else:
+        retain_string = "m"
     experiment_name = f"{args.config}_{args.car_idx}_{retain_string}_{args.exp}"
     
     # architecture = [256,256,256]
@@ -327,6 +350,7 @@ if __name__ == '__main__':
     parser.add_argument('--ws',type=bool,default=False,help='Use weighted sum or not')
     parser.add_argument('--ws_count',type=int,default=1,help='Number of policies to use in weighted sum')
     parser.add_argument('--from_pretrained',type=bool,default=False,help='Load from pretrained model')
+    parser.add_argument('--mod_type',type=str,default='both',help='Type of modification')
 
     args = parser.parse_args()
     print(args)
