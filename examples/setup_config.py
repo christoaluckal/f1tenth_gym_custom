@@ -69,13 +69,11 @@ def main():
                 'waypoints': os.path.join(map_location,f'centerline/map_{t}_{scale}.csv') if t>=100 else os.path.join(map_location,f'centerline/map_0{t}_{scale}.csv'),
                 'reset_pose': [0.0,0.0,np.pi/2]
             }
-            plt.imshow(plt.imread(map_config['map']+'.png'))
             # plt.show()
             # yes = input("Is this the map you want to use? (y/n): ")
             # if yes == 'y':
             #     configs.append(map_config)
             configs.append(map_config)
-            plt.close()
             
         print(f"Total number of maps: {len(configs)}")
         y = input("Are you satisfied with the maps? (y/n): ")
@@ -122,10 +120,10 @@ def main():
     
     print(final_configs)
     
-    # import pickle
+    import pickle
     
-    # with open('maps.pkl','wb') as f:
-    #     pickle.dump(final_configs,f)
+    with open('maps_new.pkl','wb') as f:
+        pickle.dump(final_configs,f)
     
     
     

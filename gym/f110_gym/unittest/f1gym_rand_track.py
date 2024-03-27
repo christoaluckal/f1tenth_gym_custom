@@ -310,6 +310,8 @@ if __name__ == '__main__':
                 # convert_track(track, track_int, track_ext, distance)
                 if convert_track(track, track_int, track_ext, distance):
                     break
+                else:
+                    print('@@@@ > Failed to generate track, retrying')
         except Exception as e:
             print(e)
             print('Random generator failed, retrying')
