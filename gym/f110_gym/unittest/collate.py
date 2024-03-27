@@ -28,9 +28,10 @@ def getConfigList(csv_f=None,scale_search=None):
             scale_search = input(f"Enter scale to search from {scales}: ")
             scale_search = float(scale_search)
             if scale_search in scales:
-                print(f"Searching for scale {scale_search}")
-                print(df[df["scale"]==scale_search])
-                yes = input("Is this the scale you want to search? (y/n): ")
+                # print(f"Searching for scale {scale_search}")
+                # print(df[df["scale"]==scale_search])
+                # yes = input("Is this the scale you want to search? (y/n): ")
+                yes = "y"
             else:
                 print("Invalid scale. Try again.")
     
@@ -78,4 +79,20 @@ def getConfigList(csv_f=None,scale_search=None):
         
     
 if __name__ == "__main__":
-    print(getConfigList())
+    configs = getConfigList()
+    
+    trs = configs['tr']
+    scale = configs['scale']
+    
+    import matplotlib.pyplot as plt
+    
+    n = int(math.ceil(len(trs)**0.5))
+    fig,ax = plt.subplots(n,n,figsize=(20,20))
+    
+    for i,tr in enumerate(trs):
+        im_loc = f"maps/map_{int(tr)}_{int(scale)}.png"
+        
+        ax[i//n,i%n].imshow(plt.imread(im_loc))
+        ax[i//n,i%n].set_title(f"TR: {tr}")
+    
+    plt.show()

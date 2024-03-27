@@ -86,11 +86,11 @@ def create_track():
         rad = np.random.uniform(TRACK_RAD/3, TRACK_RAD)
         if c==0:
             alpha = 0
-            rad = 1.5*TRACK_RAD
+            rad = 1.4*TRACK_RAD
         if c==CHECKPOINTS-1:
             alpha = 2*math.pi*c/CHECKPOINTS
             start_alpha = 2*math.pi*(-0.5)/CHECKPOINTS
-            rad = 1.5*TRACK_RAD
+            rad = 1.4*TRACK_RAD
         checkpoints.append( (alpha, rad*math.cos(alpha), rad*math.sin(alpha)) )
         cxs.append(rad*math.cos(alpha))
         cys.append(rad*math.sin(alpha))
@@ -298,13 +298,18 @@ def convert_track(track, track_int, track_ext, dist):
 
     with open('generated.csv','a') as f:
         f.write(f"{turn_rate},{args.scale},{dist},{dist2}\n")
+        
+    return True
 
 
 if __name__ == '__main__':
     for i in range(NUM_MAPS):
         try:
-            track, track_int, track_ext,distance = create_track()
-            convert_track(track, track_int, track_ext, distance)
+            while True:
+                track, track_int, track_ext,distance = create_track()
+                # convert_track(track, track_int, track_ext, distance)
+                if convert_track(track, track_int, track_ext, distance):
+                    break
         except Exception as e:
             print(e)
             print('Random generator failed, retrying')
