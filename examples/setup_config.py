@@ -3,7 +3,7 @@ import argparse
 from scipy.interpolate import CubicSpline
 import math
 
-def averageKappa(waypoints, window_size=50):
+def averageKappa(waypoints, window_size=20):
         
     waypoints = np.array(waypoints)
     x = waypoints[:,0].flatten()
@@ -54,7 +54,7 @@ def main():
     from f110_gym.unittest.collate import getConfigList
     
     while True:
-        config_dict = getConfigList(csv_f=os.path.join(map_location,'generated.csv'))
+        config_dict = getConfigList(csv_f=os.path.join(map_location,'generated.csv'),scale_search=1.5)
         trs = config_dict['tr']
         scale = config_dict['scale']
         
@@ -84,14 +84,25 @@ def main():
 
     for i,config in enumerate(configs):
         avg_kappa = averageKappa(np.loadtxt(config['waypoints'],delimiter=','))
-        print(f"Map {i}: Kappa: {avg_kappa}")
         curvatures.append([i,avg_kappa])
         
     # sort by curvature
     curvatures = sorted(curvatures,key=lambda x: x[1])
     
-    n = int(math.ceil(len(curvatures)**0.5))
+    print("Sorted maps by curvature: ")
+    for i,curvature in enumerate(curvatures):
+        print(f"Map {curvature[0]}: Kappa {curvature[1]}")
     
+    # n = int(math.ceil(len(curvatures)**0.5))
+    # fig, axs = plt.subplots(n,n,figsize=(15,15))
+    # for i,_ in enumerate(curvatures):
+    #     ax = axs[i//n,i%n]
+    #     ax.imshow(plt.imread(configs[curvatures[i][0]]['map']+'.png'))
+    #     ax.set_title(f"Map {curvatures[i][0]}: Kappa {curvatures[i][1]}")
+    
+    # plt.show()
+    
+    '''
     fig, axs = plt.subplots(n,n,figsize=(15,15))
     for i,_ in enumerate(curvatures):
         ax = axs[i//n,i%n]
@@ -110,6 +121,7 @@ def main():
         print(f"Map {i}: {config['map']}")
         
     n = int(math.ceil(len(final_configs)**0.5))
+
     fig, axs = plt.subplots(n,n,figsize=(15,15))
     for i,config in enumerate(final_configs):
         ax = axs[i//n,i%n]
@@ -119,10 +131,29 @@ def main():
     plt.show()
     
     print(final_configs)
+    '''
+    
+    num_maps = 4
+    selected_maps = [curvature[0] for curvature in curvatures[:num_maps]]
+    final_configs = [configs[i] for i in selected_maps]
+    
+    print("Selected maps: ")
+    for i,config in enumerate(final_configs):
+        print(f"Map {i}: {config['map']}")
+        
+    n = int(math.ceil(len(final_configs)**0.5))
+    fig, axs = plt.subplots(n,n,figsize=(15,15))
+    
+    for i,config in enumerate(final_configs):
+        ax = axs[i//n,i%n]
+        ax.imshow(plt.imread(config['map']+'.png'))
+        ax.set_title(f"Map {i}")
+        
+    plt.show()
     
     import pickle
     
-    with open('maps_new.pkl','wb') as f:
+    with open('maps.pkl','wb') as f:
         pickle.dump(final_configs,f)
     
     

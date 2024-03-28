@@ -7,9 +7,11 @@ exp = "python3 f1gym_rand_track.py --save True"
 
 subprocess.call("rm -rf maps/ centerline/ generated.csv",shell=True)
 
-trs = [0.05,0.06,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0]
+# trs = [0.05,0.06,0.07,0.08,0.09,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0]
+trs = np.linspace(0.1,3.0,30)
+trs = np.round(trs,2)
 # scales = [1.5,2,3,4,5,6]
-scales = [1.5,2]
+scales = [1.5]
 
 # for t in tqdm(trs):
 #     tr_seed = np.random.randint(0,1000)
@@ -21,7 +23,7 @@ scales = [1.5,2]
 turn_rate_seeds = {}
 
 for t in trs:
-    tr_seed = np.random.randint(0,1000)
+    tr_seed = np.random.randint(0,10000)
     turn_rate_seeds[t] = tr_seed
 
 def run_exp(tr,s):
