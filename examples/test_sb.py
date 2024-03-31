@@ -221,6 +221,7 @@ def weighedCombination(
     is_baseline=False,
     own_policy_name="policy_1",
     from_pretrained=False,
+    from_easier=0,
     mod_type="both"
     ):
 
@@ -277,8 +278,12 @@ def weighedCombination(
     model = SAC('MlpPolicy', env, verbose=args.verbose, tensorboard_log=f"logs/sac_{experiment_name}")
     
     if from_pretrained:
-        print(f"Loading from pretrained model: logs/baseline_{args.config}.pth")
-        model.policy.load_state_dict(torch.load(f"logs/baseline_{args.config}.pth"))
+        if from_easier == 0:
+            print(f"Loading from pretrained model: logs/baseline_{args.config}.pth")
+            model.policy.load_state_dict(torch.load(f"logs/baseline_{args.config}.pth"))
+        else:
+            print(f"Loading from easier model: logs/policy_{from_easier}.pth")
+            model.policy.load_state_dict(torch.load(f"logs/policy_{from_easier}.pth"))
     
     model.learn(total_timesteps=args.total_timesteps, callback=custom_cb)
     
@@ -328,7 +333,9 @@ def main():
             retain_ratio=args.retain,
             is_baseline=args.base,
             own_policy_name=f"policy_{args.config}",
-            from_pretrained=args.from_pretrained
+            from_pretrained=args.from_pretrained,
+            from_easier=args.from_easier,
+            mod_type=args.mod_type
             )
         
     else:
@@ -352,6 +359,7 @@ if __name__ == '__main__':
     parser.add_argument('--ws',type=bool,default=False,help='Use weighted sum or not')
     parser.add_argument('--ws_count',type=int,default=1,help='Number of policies to use in weighted sum')
     parser.add_argument('--from_pretrained',type=bool,default=False,help='Load from pretrained model')
+    parser.add_argument('--from_easier',type=int,default=0,help='Load from easier model')
     parser.add_argument('--mod_type',type=str,default='both',help='Type of modification')
 
     args = parser.parse_args()
