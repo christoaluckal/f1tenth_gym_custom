@@ -1,0 +1,39 @@
+import multiprocessing as mp
+from subprocess import call
+import time
+
+def run_exp(exp):
+    call(exp, shell=True)
+
+
+sf = 10
+me = 50
+te = int(100)
+exp_counter = 0
+
+exp_str = " --from_pretrained True --ws True --ws_count 3 --save_freq " + str(sf) + " --modify_epoch " + str(me) + " --total_timesteps " + str(te)
+
+for ra in ratios:
+    for f in [1]:
+        exp_counter += 1
+        r = [f*x for x in ra[:-1]]
+        r.append(ra[-1])
+        exp1 = "python3 test_sb.py --config 1 --car_idx 1 --base 0 --retain " + str(r[0]) + exp_str  +" --exp " + str(exp_counter) +" --verbose 1 --mod_type "+str(r[3]) 
+        exp3 = "python3 test_sb.py --config 2 --car_idx 3 --base 0 --retain " + str(r[1]) + exp_str +" --exp " + str(exp_counter) +" --verbose 1 --mod_type "+str(r[3])
+        exp5 = "python3 test_sb.py --config 3 --car_idx 5 --base 0 --retain " + str(r[2]) + exp_str +" --exp " + str(exp_counter) +" --verbose 1 --mod_type "+str(r[3])
+        processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp1,exp3,exp5]]
+        try:
+            for p in processes:
+                p.start()
+
+            for p in processes:
+                p.join()
+            
+        except KeyboardInterrupt:
+            for p in processes:
+                p.terminate()
+                
+            exit(0)
+                
+        time.sleep(10)
+
