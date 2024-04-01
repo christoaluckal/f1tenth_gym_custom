@@ -16,15 +16,32 @@ ratios = [
     [0.7,0.7,0.7,'both'],
     [0.7,0.7,0.7,'actor'],
     [0.7,0.7,0.7,'critic'],
+    [0.6,0.6,0.6,'both'],
+    [0.6,0.6,0.6,'actor'],
+    [0.6,0.6,0.6,'critic'],
+    [0.5,0.5,0.5,'both'],
+    [0.5,0.5,0.5,'actor'],
+    [0.5,0.5,0.5,'critic'],
+    [0.4,0.4,0.4,'both'],
+    [0.4,0.4,0.4,'actor'],
+    [0.4,0.4,0.4,'critic'],
+    [0.3,0.3,0.3,'both'],
+    [0.3,0.3,0.3,'actor'],
+    [0.3,0.3,0.3,'critic'],
+    [0.2,0.2,0.2,'both'],
+    [0.2,0.2,0.2,'actor'],
+    [0.2,0.2,0.2,'critic'],
+    [0.1,0.1,0.1,'both'],
+    [0.1,0.1,0.1,'actor'],
     [-1.0,-1.0,-1.0,'both'],
     [-1.0,-1.0,-1.0,'actor'],
-    [-1.0,-1.0,-1.0,'critic']
+    [-1.0,-1.0,-1.0,'critic'],
 ]
 
 
 sf = 10000
 me = 20000
-te = int(2.5e5)
+te = int(1.5e5)
 exp_counter = 0
 
 exp_str = " --from_pretrained True --ws True --ws_count 3 --save_freq " + str(sf) + " --modify_epoch " + str(me) + " --total_timesteps " + str(te)
