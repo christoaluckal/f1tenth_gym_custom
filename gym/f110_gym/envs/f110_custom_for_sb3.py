@@ -228,7 +228,7 @@ class F110_Cust_Env(gym.Env):
         self.render_obs = None
 
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(62,), dtype=np.float64)
-        self.action_space = spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float64)
+        self.action_space = spaces.Box(low=-1, high=1, shape=(1,2), dtype=np.float64)
 
         self.max_speed = 20
         self.max_steer = 0.4
@@ -244,24 +244,16 @@ class F110_Cust_Env(gym.Env):
 
     def normalize_actions(self, actions):
         new_actions = []
-        
-        # for a in actions:
-        #     speed = a[1]
-        #     steer = a[0]
 
-        #     new_speed = (speed-(-1))*(self.max_speed-0)/(1-(-1)) + 1e-2
+        for a in actions:
+            speed = a[1]
+            steer = a[0]
 
-        #     new_steer = steer*self.max_steer
+            new_speed = (speed-(-1))*(self.max_speed-0)/(1-(-1)) + 1e-2
 
-        #     new_actions.append([new_steer,new_speed])
-        speed = actions[1]
-        steer = actions[0]
+            new_steer = steer*self.max_steer
 
-        new_speed = (speed-(-1))*(self.max_speed-0)/(1-(-1)) + 1e-2
-
-        new_steer = steer*self.max_steer
-
-        new_actions.append([new_steer,new_speed])
+            new_actions.append([new_steer,new_speed])
 
 
         return np.array(new_actions)
@@ -528,13 +520,11 @@ class F110_Cust_Env(gym.Env):
         self.steps = 0
 
         # get no input observations
-        # action = np.zeros((self.num_agents, 2))
-        action = [0.0,0.0]
+        action = np.zeros((self.num_agents, 2))
 
         obs, reward, done, _, info = self.step(action)
 
-        
-        return obs, reward, done, _, info
+        return obs, info
 
     # def reset(self):
     #     """
