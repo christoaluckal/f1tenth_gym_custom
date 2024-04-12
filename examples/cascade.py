@@ -1,39 +1,58 @@
 import multiprocessing as mp
 from subprocess import call
-import time
+import os
 
 def run_exp(exp):
     call(exp, shell=True)
 
+if not os.path.exists("logs"):
+    os.makedirs("logs",exist_ok=True)
 
-sf = 10
-me = 50
-te = int(100)
+te = int(4e5)
 exp_counter = 0
 
-exp_str = " --from_pretrained True --ws True --ws_count 3 --save_freq " + str(sf) + " --modify_epoch " + str(me) + " --total_timesteps " + str(te)
+exp_str = " --total_timesteps " + str(te)
 
-for ra in ratios:
-    for f in [1]:
-        exp_counter += 1
-        r = [f*x for x in ra[:-1]]
-        r.append(ra[-1])
-        exp1 = "python3 test_sb.py --config 1 --car_idx 1 --base 0 --retain " + str(r[0]) + exp_str  +" --exp " + str(exp_counter) +" --verbose 1 --mod_type "+str(r[3]) 
-        exp3 = "python3 test_sb.py --config 2 --car_idx 3 --base 0 --retain " + str(r[1]) + exp_str +" --exp " + str(exp_counter) +" --verbose 1 --mod_type "+str(r[3])
-        exp5 = "python3 test_sb.py --config 3 --car_idx 5 --base 0 --retain " + str(r[2]) + exp_str +" --exp " + str(exp_counter) +" --verbose 1 --mod_type "+str(r[3])
-        processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp1,exp3,exp5]]
-        try:
-            for p in processes:
-                p.start()
+exp1 = "python3 test_cascade.py --config 1 --car_idx 1 --exp 1 --verbose 1 --is_baseline 1 --own_policy_name 'policy_1'" + exp_str
 
-            for p in processes:
-                p.join()
-            
-        except KeyboardInterrupt:
-            for p in processes:
-                p.terminate()
-                
-            exit(0)
-                
-        time.sleep(10)
+exp2 = "python3 test_cascade.py --config 2 --car_idx 2 --exp 2 --verbose 1 --from_easier 1 --easier_name 'policy_1'" + exp_str
+exp2_base = "python3 test_cascade.py --config 2 --car_idx 2 --exp 3 --verbose 1 --is_baseline 1 --own_policy_name 'policy_2'" + exp_str
 
+exp3 = "python3 test_cascade.py --config 3 --car_idx 3 --exp 4 --verbose 1 --from_easier 1 --easier_name 'policy_2'" + exp_str
+exp3_base = "python3 test_cascade.py --config 3 --car_idx 3 --exp 5 --verbose 1 --is_baseline 1 --own_policy_name 'policy_3'" + exp_str
+
+# run exp1
+run_exp(exp1)
+
+exps = [exp2,exp2_base]
+
+processes = [mp.Process(target=run_exp, args=(exp,)) for exp in exps]
+
+try:
+    for p in processes:
+        p.start()
+    
+    for p in processes:
+        p.join()
+
+except Exception as e:
+    print(e)
+    for p in processes:
+        p.join()
+
+
+exps = [exp3,exp3_base]
+
+processes = [mp.Process(target=run_exp, args=(exp,)) for exp in exps]
+
+try:
+    for p in processes:
+        p.start()
+    
+    for p in processes:
+        p.join()
+
+except Exception as e:
+    print(e)
+    for p in processes:
+        p.join()
