@@ -367,6 +367,35 @@ class F110_Cust_Env(gym.Env):
         self.poses_theta = obs_dict['poses_theta']
         self.collisions = obs_dict['collisions']
 
+    def get_dummies(self):
+        t = np.linspace(0,self.track_length,32)
+
+        dx_dt = self.x_spline(t,1)
+        dy_dt = self.y_spline(t,1)
+        phi = np.arctan2(dy_dt,dx_dt)
+
+        v = np.ones_like(t)
+
+        x = self.x_spline(t)
+        y = self.y_spline(t)
+
+        batch = []
+
+        for i in range(len(t)):
+            current_closest_t = self.closest_spline_param(x[i],y[i],self.x_spline,self.y_spline)
+            t_vec = np.arange(current_closest_t,current_closest_t+3,0.1)
+            state = [phi[i],v[i]]
+            for j in t_vec:
+                dx = self.x_spline(j)-x[i]
+                dy = self.y_spline(j)-y[i]
+                state.append(dx)
+                state.append(dy)
+            state = state[:62]
+            batch.append(state)
+        
+        return np.array(batch)
+
+
     def step(self, action):
         """
         Step function for the gym env
