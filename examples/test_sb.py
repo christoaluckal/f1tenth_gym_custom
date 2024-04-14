@@ -24,7 +24,9 @@ with open("device.yaml") as f:
     device = yaml.load(f, Loader=yaml.FullLoader)
     
 is_lab = device['is_lab']
+is_home = device['is_home']
 
+print(f"Lab: {is_lab}, Home: {is_home}")
 
 class WeightedUpdate(BaseCallback):
     """
@@ -239,6 +241,12 @@ def weighedCombination(
             i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
             i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
     
+    if is_home:
+        print("Using home configs")
+        for i in configs:
+            i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
+            i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
+
     eval_config = configs[0]
     testing_config = configs[1:]
     current_config = testing_config[args.config-1]
@@ -302,6 +310,12 @@ def simple_run():
         for i in configs:
             i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
             i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
+
+    if is_home:
+        for i in configs:
+            print(i['map'],i['waypoints'])
+            i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
+            i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
     
 
     testing_config = configs[1:]
@@ -351,9 +365,9 @@ if __name__ == '__main__':
     parser.add_argument('--car_idx', type=int, default=1, help='Car index to use')
     parser.add_argument('--base',type=int,default=1,help='Base or custom callback')
     parser.add_argument('--retain',type=float,default=1,help='Retain ratio for custom callback')
-    parser.add_argument('--exp',type=int,default=1,help='Experiment number')
-    parser.add_argument('--save_freq',type=int,default=100,help='Save frequency for custom callback')
-    parser.add_argument('--modify_epoch',type=int,default=200,help='Modify epoch for custom callback')
+    parser.add_argument('--exp',type=str,default="1",help='Experiment name')
+    parser.add_argument('--save_freq',type=int,default=10000,help='Save frequency for custom callback')
+    parser.add_argument('--modify_epoch',type=int,default=20000,help='Modify epoch for custom callback')
     parser.add_argument('--total_timesteps',type=int,default=1e6,help='Total timesteps for training')
     parser.add_argument('--verbose',type=int,default=0,help='Verbosity level')
     parser.add_argument('--ws',type=bool,default=False,help='Use weighted sum or not')
