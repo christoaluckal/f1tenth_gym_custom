@@ -4,10 +4,14 @@ import torch.nn.functional as F
 from torch.optim import Adam
 from utils import soft_update, hard_update
 from model import GaussianPolicy, QNetwork, DeterministicPolicy
+import numpy as np
+from torch.nn import KLDivLoss
+
+kl_div = KLDivLoss(reduction='batchmean')
 
 
 class SAC(object):
-    def __init__(self, num_inputs, action_space, args):
+    def __init__(self, num_inputs, action_space, args, eval_batch=None, CUP_flag=False):
 
         self.gamma = args.gamma
         self.tau = args.tau
@@ -17,6 +21,8 @@ class SAC(object):
         self.target_update_interval = args.target_update_interval
         self.automatic_entropy_tuning = args.automatic_entropy_tuning
 
+        self.hidden_size = args.hidden_size
+
         self.device = torch.device("cuda" if args.cuda else "cpu")
 
         self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
@@ -24,6 +30,12 @@ class SAC(object):
 
         self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
         hard_update(self.critic_target, self.critic)
+
+        self.eval_batch = eval_batch
+
+        self.guided_policy = CUP_flag
+
+        self.action_space = action_space
 
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
@@ -35,11 +47,91 @@ class SAC(object):
             self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
+            # save initial policy
+            policy_dict = self.policy.state_dict()
+            torch.save(policy_dict, "policy_2.pth")
+
+
         else:
             self.alpha = 0
             self.automatic_entropy_tuning = False
             self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
+
+    def _KL(self, p, q):
+        p = p.detach().cpu().numpy()
+        q = q.detach().cpu().numpy()
+
+        a = []
+        b = []
+
+        for i in range(len(p)):
+            if p[i] == 0:
+                p[i] = 1e-8
+            if q[i] == 0:
+                q[i] = 1e-8
+            a.append(p[i].item())
+            b.append(q[i].item())
+
+        a = np.array(a)
+        b = np.array(b)
+
+        probs_a = np.exp(a) / np.sum(np.exp(a))
+        probs_b = np.exp(b) / np.sum(np.exp(b))
+
+        kl = np.sum(probs_a * np.log(probs_a / probs_b))
+        kl = np.mean(kl)
+
+        return kl
+
+            
+
+    def compute_KL_score(self,
+                    other_policies=None,
+                    eval_batch=None,
+                    num_inputs=None,
+                    hidden_size=None,
+                    action_space=None,
+                   ):
+        if other_policies is None:
+            raise ValueError("other_policies cannot be None")
+        if eval_batch is None:
+            raise ValueError("eval_batch cannot be None")
+        
+        import numpy as np
+
+        states = np.copy(eval_batch)
+        states = torch.FloatTensor(states).to(self.device)
+
+        advantages = []
+
+        
+        for p in other_policies:
+            temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
+            policy_dict = torch.load(p)
+            temp_policy.load_state_dict(policy_dict)
+            temp_policy.eval()
+            pi,log_pi, _ = temp_policy.sample(states)
+            with torch.no_grad():
+                qf1_pi, qf2_pi = self.critic(states, pi)
+                min_qf_pi = torch.min(qf1_pi, qf2_pi)
+                EA = min_qf_pi - self.alpha * log_pi
+                EA = EA.mean()
+                advantages.append(EA)
+        
+        max_idx = np.argmax(advantages)
+
+        best_policy_idx = other_policies[max_idx]
+        best_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
+        policy_dict = torch.load(best_policy_idx)
+        best_policy.load_state_dict(policy_dict)
+
+        curr_actions_prob = self.policy.sample(states)[1]
+        best_actions_prob = best_policy.sample(states)[1]
+
+        KL = self._KL(curr_actions_prob,best_actions_prob)
+        return KL
+
 
     def select_action(self, state, evaluate=False):
         if type(state)==tuple:
@@ -51,8 +143,7 @@ class SAC(object):
             _, _, action = self.policy.sample(state)
         return action.detach().cpu().numpy()[0]
 
-
-    def update_parameters(self, memory, batch_size, updates):
+    def update_parameters(self, memory, batch_size, updates, guided_itr=False):
         # Sample a batch from memory
         state_batch, action_batch, reward_batch, next_state_batch, mask_batch = memory.sample(batch_size=batch_size)
 
@@ -82,6 +173,11 @@ class SAC(object):
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean() # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+            
+        if self.guided_policy and guided_itr:
+            other_policies = ["policy_2.pth"]
+            KL = self.compute_KL_score(other_policies=other_policies, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
+            policy_loss += KL
 
         self.policy_optim.zero_grad()
         policy_loss.backward()
