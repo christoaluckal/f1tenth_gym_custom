@@ -7,6 +7,12 @@ import torch
 from sac import SAC
 from torch.utils.tensorboard import SummaryWriter
 from replay_memory import ReplayMemory
+import yaml
+
+with open('../device.yaml') as f:
+    data = yaml.load(f, Loader=yaml.FullLoader)
+
+is_lab = data['is_lab']
 
 def register_f110(idx=1):
     import os
@@ -23,11 +29,11 @@ def register_f110(idx=1):
         os.makedirs("logs",exist_ok=True)
 
 
-    print("Using home configs")
-    for i in configs:
-        i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
-        i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
-
+    if is_lab:
+        print("Using lab configs")
+        for i in configs:
+            i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
+            i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
 
     testing_config = configs[1:]
     current_config = testing_config[idx-1]
