@@ -8,7 +8,7 @@ from sac import SAC
 from torch.utils.tensorboard import SummaryWriter
 from replay_memory import ReplayMemory
 
-def register_f110():
+def register_f110(idx=1):
     import os
     import pickle
     from gym.envs.registration import register
@@ -30,12 +30,12 @@ def register_f110():
 
 
     testing_config = configs[1:]
-    current_config = testing_config[0]
+    current_config = testing_config[idx-1]
 
     register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
 
+    eval_env = gym.make('f110_gym:f110-cust-v0',config=configs[0], num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
     env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-    eval_env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
 
     return env, eval_env
 
@@ -75,6 +75,10 @@ parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
 parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
+parser.add_argument('--kl_scale', type=float, default=10)
+parser.add_argument('--own_policy_idx',type=int,default=1)
+parser.add_argument('--config', type=int, default=1)
+parser.add_argument('--cup_flag', type=bool, default=True)
 args = parser.parse_args()
 
 # Environment
@@ -86,13 +90,25 @@ args = parser.parse_args()
 # torch.manual_seed(args.seed)
 # np.random.seed(args.seed)
 
-env,eval_env = register_f110()
+env,eval_env = register_f110(args.config)
 
 eval_batch = eval_env.get_dummies()
 
+own_policy_name = f"policy_{args.own_policy_idx}.pth"
+
+other_policy_name = ""
+
+if args.own_policy_idx == 1:
+    other_policy_name = "policy_2.pth"
+else:
+    other_policy_name = "policy_1.pth"
 
 # Agent
-agent = SAC(env.observation_space.shape[0], env.action_space, args,eval_batch,CUP_flag=True)
+agent = SAC(env.observation_space.shape[0], 
+            env.action_space, 
+            args,eval_batch,
+            CUP_flag=args.cup_flag,
+            other_policy_name=other_policy_name)
 
 #Tesnorboard
 writer = SummaryWriter('runs/{}_SAC_{}_{}_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"), args.env_name,
@@ -121,16 +137,18 @@ for i_episode in itertools.count(1):
             # Number of updates per step in environment
             for i in range(args.updates_per_step):
                 # Update parameters of all the networks
-                if i_episode % 3 == 0:
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
+                if i_episode % 25 == 0:
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
                 else:
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha = agent.update_parameters(memory, args.batch_size, updates)
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl = agent.update_parameters(memory, args.batch_size, updates)
 
                 writer.add_scalar('loss/critic_1', critic_1_loss, updates)
                 writer.add_scalar('loss/critic_2', critic_2_loss, updates)
                 writer.add_scalar('loss/policy', policy_loss, updates)
                 writer.add_scalar('loss/entropy_loss', ent_loss, updates)
                 writer.add_scalar('entropy_temprature/alpha', alpha, updates)
+                writer.add_scalar('div/kl_scaled', kl, updates)
+                writer.add_scalar('div/kl_original', kl/args.kl_scale, updates)
                 updates += 1
 
         next_state, reward, done, _, _ = env.step(action) # Step
@@ -156,7 +174,7 @@ for i_episode in itertools.count(1):
         break
 
     writer.add_scalar('reward/train', episode_reward, i_episode)
-    print("Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+    print("Config: {}|{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
 
     if i_episode % 10 == 0 and args.eval is True:
         avg_reward = 0.
@@ -182,8 +200,11 @@ for i_episode in itertools.count(1):
         writer.add_scalar('avg_reward/test', avg_reward, i_episode)
 
         print("----------------------------------------")
-        print("Test Episodes: {}, Avg. Reward: {}".format(episodes, round(avg_reward, 2)))
+        print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
+    if i_episode % 10 == 0 and args.cup_flag:
+        policy = agent.policy.state_dict()
+        torch.save(policy, own_policy_name)
 env.close()
 
