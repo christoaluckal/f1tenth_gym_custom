@@ -11,7 +11,7 @@ kl_div = KLDivLoss(reduction='batchmean')
 
 
 class SAC(object):
-    def __init__(self, num_inputs, action_space, args, eval_batch=None, CUP_flag=False):
+    def __init__(self, num_inputs, action_space, args, eval_batch=None, CUP_flag=False, other_policy_name=None):
 
         self.gamma = args.gamma
         self.tau = args.tau
@@ -37,6 +37,10 @@ class SAC(object):
 
         self.action_space = action_space
 
+        self.kl_scale = args.kl_scale
+
+        self.other_policy_name = other_policy_name
+
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
             if self.automatic_entropy_tuning is True:
@@ -47,9 +51,9 @@ class SAC(object):
             self.policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
-            # save initial policy
-            policy_dict = self.policy.state_dict()
-            torch.save(policy_dict, "policy_2.pth")
+            # # save initial policy
+            # policy_dict = self.policy.state_dict()
+            # torch.save(policy_dict, "policy_2.pth")
 
 
         else:
@@ -173,11 +177,14 @@ class SAC(object):
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean() # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
+        KL = 0
             
         if self.guided_policy and guided_itr:
-            other_policies = ["policy_2.pth"]
+            other_policies = [self.other_policy_name]
             KL = self.compute_KL_score(other_policies=other_policies, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
-            policy_loss += KL
+            policy_loss += KL*self.kl_scale
+        else:
+            policy_loss += KL*self.kl_scale
 
         self.policy_optim.zero_grad()
         policy_loss.backward()
@@ -200,7 +207,7 @@ class SAC(object):
         if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)
 
-        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item()
+        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), KL
 
     # Save model parameters
     def save_checkpoint(self, env_name, suffix="", ckpt_path=None):
