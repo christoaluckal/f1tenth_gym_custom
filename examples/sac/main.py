@@ -84,7 +84,7 @@ parser.add_argument('--cuda', action="store_true",
 parser.add_argument('--kl_scale', type=float, default=10)
 parser.add_argument('--own_policy_idx',type=int,default=1)
 parser.add_argument('--config', type=int, default=1)
-parser.add_argument('--cup_flag', type=bool, default=True)
+parser.add_argument('--cup_flag', type=bool, default=False)
 args = parser.parse_args()
 
 # Environment
