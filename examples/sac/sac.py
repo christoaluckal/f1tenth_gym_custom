@@ -179,11 +179,9 @@ class SAC(object):
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean() # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
         KL = 0
             
-        if self.guided_policy and guided_itr:
+        if self.guided_policy and guided_itr and self.kl_scale > 1e-2:
             other_policies = [self.other_policy_name]
             KL = self.compute_KL_score(other_policies=other_policies, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
-            policy_loss += KL*self.kl_scale
-        else:
             policy_loss += KL*self.kl_scale
 
         self.policy_optim.zero_grad()
