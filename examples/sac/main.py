@@ -153,20 +153,23 @@ for i_episode in itertools.count(1):
                         critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
                     else:
                         critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl = agent.update_parameters(memory, args.batch_size, updates)
-                    
-                    if updates % 100 == 0:
-                        # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
-                        # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
-                        writer.add_scalar('loss/policy', policy_loss, updates)
-                        writer.add_scalar('loss/entropy_loss', ent_loss, updates)
-                        # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
 
+                    if i_episode % 25 == 0:
                         if args.kl_scale > 0:
                             writer.add_scalar('div/kl_scaled', kl, updates)
                             writer.add_scalar('div/kl_original', kl/args.kl_scale, updates)
                         else:
                             writer.add_scalar('div/kl_scaled', 0, updates)
                             writer.add_scalar('div/kl_original', 0, updates)
+
+                    if updates % 25 == 0:
+                        # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
+                        # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
+                        writer.add_scalar('loss/policy', policy_loss, updates)
+                        writer.add_scalar('loss/entropy_loss', ent_loss, updates)
+                        # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
+
+                        
                     updates += 1
 
                 except Exception as e:

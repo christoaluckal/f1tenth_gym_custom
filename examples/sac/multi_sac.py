@@ -7,6 +7,6 @@ def run_exp(exp):
 configs = [1,2]
 
 for config in configs:
-    exp = f"python main.py --config {config} --num_steps 2000000"
+    exp = f"python main.py --config {config} --num_steps 1000000"
     run_exp(exp)
     
