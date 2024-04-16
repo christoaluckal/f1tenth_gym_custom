@@ -165,6 +165,8 @@ Dockerfile
 setup.py
 LICENSE
 
+examples/sac/runs
+
 # tfevents
 *tfevents*
 *.csv
