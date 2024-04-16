@@ -121,7 +121,7 @@ class SAC(object):
                 min_qf_pi = torch.min(qf1_pi, qf2_pi)
                 EA = min_qf_pi - self.alpha * log_pi
                 EA = EA.mean()
-                advantages.append(EA)
+                advantages.append(EA.cpu().numpy())
         
         max_idx = np.argmax(advantages)
 

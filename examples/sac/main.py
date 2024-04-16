@@ -34,6 +34,11 @@ def register_f110(idx=1):
         for i in configs:
             i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
             i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/christoa/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
+    else:
+        print("Using lab configs")
+        for i in configs:
+            i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
+            i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
 
     testing_config = configs[1:]
     current_config = testing_config[idx-1]
@@ -81,7 +86,7 @@ parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
 parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
-parser.add_argument('--kl_scale', type=float, default=10)
+parser.add_argument('--kl_scale', type=float, default=2)
 parser.add_argument('--own_policy_idx',type=int,default=1)
 parser.add_argument('--config', type=int, default=1)
 parser.add_argument('--cup_flag', type=bool, default=False)
@@ -143,20 +148,32 @@ for i_episode in itertools.count(1):
             # Number of updates per step in environment
             for i in range(args.updates_per_step):
                 # Update parameters of all the networks
-                if i_episode % 25 == 0:
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
-                else:
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl = agent.update_parameters(memory, args.batch_size, updates)
+                try:
+                    if i_episode % 25 == 0:
+                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
+                    else:
+                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl = agent.update_parameters(memory, args.batch_size, updates)
+                    
+                    if updates % 100 == 0:
+                        # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
+                        # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
+                        writer.add_scalar('loss/policy', policy_loss, updates)
+                        writer.add_scalar('loss/entropy_loss', ent_loss, updates)
+                        # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
 
-                writer.add_scalar('loss/critic_1', critic_1_loss, updates)
-                writer.add_scalar('loss/critic_2', critic_2_loss, updates)
-                writer.add_scalar('loss/policy', policy_loss, updates)
-                writer.add_scalar('loss/entropy_loss', ent_loss, updates)
-                writer.add_scalar('entropy_temprature/alpha', alpha, updates)
-                writer.add_scalar('div/kl_scaled', kl, updates)
-                writer.add_scalar('div/kl_original', kl/args.kl_scale, updates)
-                updates += 1
+                        if args.kl_scale > 0:
+                            writer.add_scalar('div/kl_scaled', kl, updates)
+                            writer.add_scalar('div/kl_original', kl/args.kl_scale, updates)
+                        else:
+                            writer.add_scalar('div/kl_scaled', 0, updates)
+                            writer.add_scalar('div/kl_original', 0, updates)
+                    updates += 1
 
+                except Exception as e:
+                    print(e)
+                    continue
+
+        
         next_state, reward, done, _, _ = env.step(action) # Step
         episode_steps += 1
         total_numsteps += 1
