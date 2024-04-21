@@ -73,6 +73,9 @@ class GaussianPolicy(nn.Module):
 
         self.apply(weights_init_)
 
+        self.last_mean = None
+        self.last_std = None
+
         # action rescaling
         if action_space is None:
             self.action_scale = torch.tensor(1.)
@@ -94,6 +97,10 @@ class GaussianPolicy(nn.Module):
     def sample(self, state):
         mean, log_std = self.forward(state)
         std = log_std.exp()
+
+        self.last_mean = mean
+        self.last_std = std
+
         normal = Normal(mean, std)
         x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
         y_t = torch.tanh(x_t)

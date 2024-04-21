@@ -178,11 +178,17 @@ class SAC(object):
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean() # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
         KL = 0
+        curr_mean = [0,0]
+        curr_std = [0,0]
             
         if self.guided_policy and guided_itr and self.kl_scale > 1e-2:
             other_policies = [self.other_policy_name]
             KL = self.compute_KL_score(other_policies=other_policies, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
             policy_loss += KL*self.kl_scale
+            curr_mean = self.policy.last_mean
+            curr_std = self.policy.last_std
+
+
 
         self.policy_optim.zero_grad()
         policy_loss.backward()
@@ -205,7 +211,7 @@ class SAC(object):
         if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)
 
-        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), KL
+        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), KL, curr_mean, curr_std
 
     # Save model parameters
     def save_checkpoint(self, env_name, suffix="", ckpt_path=None):
