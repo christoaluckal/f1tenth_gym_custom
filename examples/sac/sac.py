@@ -187,6 +187,10 @@ class SAC(object):
             policy_loss += KL*self.kl_scale
             curr_mean = self.policy.last_mean
             curr_std = self.policy.last_std
+        elif guided_itr and self.kl_scale < 1e-2:
+            curr_mean = self.policy.last_mean
+            curr_std = self.policy.last_std
+
 
 
 
