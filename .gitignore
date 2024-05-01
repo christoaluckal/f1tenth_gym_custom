@@ -173,3 +173,5 @@ examples/sac/runs
 *.png
 *.pgm
 *.yaml
+
+*.zip

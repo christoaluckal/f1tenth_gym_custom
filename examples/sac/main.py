@@ -151,45 +151,45 @@ for i_episode in itertools.count(1):
             # Number of updates per step in environment
             for i in range(args.updates_per_step):
                 # Update parameters of all the networks
-                # try:
-                if i_episode % update_freq == 0:
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
-                else:
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig = agent.update_parameters(memory, args.batch_size, updates)
-
-                if i_episode % update_freq == 0:
-                    if args.kl_scale > 0:
-                        writer.add_scalar('div/kl_scaled', kl, updates)
-                        writer.add_scalar('div/kl_original', kl/args.kl_scale, updates)
+                try:
+                    if i_episode % update_freq == 0:
+                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
                     else:
-                        writer.add_scalar('div/kl_scaled', 0, updates)
-                        writer.add_scalar('div/kl_original', 0, updates)
+                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig = agent.update_parameters(memory, args.batch_size, updates)
 
-                    if type(mu) == torch.Tensor:
-                        mu = mu.cpu().detach().numpy()
-                        sig = sig.cpu().detach().numpy()
+                    if i_episode % update_freq == 0:
+                        if args.kl_scale > 0:
+                            writer.add_scalar('div/kl_scaled', kl, updates)
+                            writer.add_scalar('div/kl_original', kl/args.kl_scale, updates)
+                        else:
+                            writer.add_scalar('div/kl_scaled', 0, updates)
+                            writer.add_scalar('div/kl_original', 0, updates)
 
-                        mean_mu = np.mean(mu,axis=0)
-                        mean_sig = np.mean(sig,axis=0)
+                        if type(mu) == torch.Tensor:
+                            mu = mu.cpu().detach().numpy()
+                            sig = sig.cpu().detach().numpy()
 
-                        writer.add_scalar('div/speed_mu', mean_mu[0], updates)
-                        writer.add_scalar('div/speed_sig', mean_sig[0], updates)
-                        writer.add_scalar('div/steer_mu', mean_mu[1], updates)
-                        writer.add_scalar('div/steer_sig', mean_sig[1], updates)
+                            mean_mu = np.mean(mu,axis=0)
+                            mean_sig = np.mean(sig,axis=0)
 
-                if updates % update_freq == 0:
-                    # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
-                    # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
-                    writer.add_scalar('loss/policy', policy_loss, updates)
-                    writer.add_scalar('loss/entropy_loss', ent_loss, updates)
-                    # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
+                            writer.add_scalar('div/steer_mu', mean_mu[0], updates)
+                            writer.add_scalar('div/steer_sig', mean_sig[0], updates)
+                            writer.add_scalar('div/speed_mu', mean_mu[1], updates)
+                            writer.add_scalar('div/speed_sig', mean_sig[1], updates)
 
-                    
-                updates += 1
+                    if updates % update_freq == 0:
+                        # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
+                        # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
+                        writer.add_scalar('loss/policy', policy_loss, updates)
+                        writer.add_scalar('loss/entropy_loss', ent_loss, updates)
+                        # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
 
-                # except Exception as e:
-                #     print(e)
-                #     continue
+                        
+                    updates += 1
+
+                except Exception as e:
+                    print(e)
+                    continue
 
         
         next_state, reward, done, _, _ = env.step(action) # Step
