@@ -107,12 +107,14 @@ eval_batch = eval_env.get_dummies()
 
 own_policy_name = f"policy_{args.own_policy_idx}.pth"
 
-other_policy_name = ""
+# other_policy_name = ""
 
-if args.own_policy_idx == 1:
-    other_policy_name = "policy_2.pth"
-else:
-    other_policy_name = "policy_1.pth"
+# if args.own_policy_idx == 1:
+#     other_policy_name = "policy_2.pth"
+# else:
+#     other_policy_name = "policy_1.pth"
+
+other_policies = [f"policy_{i}.pth" for i in range(1,4) if i!=args.own_policy_idx]
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
@@ -124,7 +126,8 @@ agent = SAC(env.observation_space.shape[0],
             env.action_space, 
             args,eval_batch,
             CUP_flag=args.cup_flag,
-            other_policy_name=other_policy_name
+            other_policies=other_policies,
+            own_idx=args.own_policy_idx
             )
 
 # Memory

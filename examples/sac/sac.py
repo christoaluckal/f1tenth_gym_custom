@@ -11,7 +11,7 @@ kl_div = KLDivLoss(reduction='batchmean')
 
 
 class SAC(object):
-    def __init__(self, num_inputs, action_space, args, eval_batch=None, CUP_flag=False, other_policy_name=None):
+    def __init__(self, num_inputs, action_space, args, eval_batch=None, CUP_flag=False, other_policies=None,own_idx=1):
 
         self.gamma = args.gamma
         self.tau = args.tau
@@ -39,7 +39,7 @@ class SAC(object):
 
         self.kl_scale = args.kl_scale
 
-        self.other_policy_name = other_policy_name
+        self.other_policy_list = other_policies
 
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
@@ -52,8 +52,11 @@ class SAC(object):
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
             # # save initial policy
-            # policy_dict = self.policy.state_dict()
-            # torch.save(policy_dict, "policy_2.pth")
+            if not os.path.exists(f"policy_{own_idx}.pth"):
+                policy_dict = self.policy.state_dict()
+                torch.save(policy_dict, f"policy_{own_idx}.pth")
+            else:
+                print(f"policy_{own_idx}.pth already exists")
 
 
         else:
@@ -182,8 +185,7 @@ class SAC(object):
         curr_std = [0,0]
             
         if self.guided_policy and guided_itr and self.kl_scale > 1e-2:
-            other_policies = [self.other_policy_name]
-            KL = self.compute_KL_score(other_policies=other_policies, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
+            KL = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
             policy_loss += KL*self.kl_scale
             curr_mean = self.policy.last_mean
             curr_std = self.policy.last_std
