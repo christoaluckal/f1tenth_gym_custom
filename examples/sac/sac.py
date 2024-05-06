@@ -52,11 +52,17 @@ class SAC(object):
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
             # # save initial policy
-            if not os.path.exists(f"policy_{own_idx}.pth"):
+            # if not os.path.exists(f"policy_{own_idx}.pth"):
+            #     policy_dict = self.policy.state_dict()
+            #     torch.save(policy_dict, f"policy_{own_idx}.pth")
+            # else:
+            #     print(f"policy_{own_idx}.pth already exists")
+            if os.path.exists(f"policy_{own_idx}.pth"):
+                os.remove(f"policy_{own_idx}.pth")
                 policy_dict = self.policy.state_dict()
                 torch.save(policy_dict, f"policy_{own_idx}.pth")
-            else:
-                print(f"policy_{own_idx}.pth already exists")
+
+                
 
 
         else:
