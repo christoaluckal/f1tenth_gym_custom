@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 from torch.optim import Adam
 from utils import soft_update, hard_update
-from model import GaussianPolicy, QNetwork, DeterministicPolicy
+from model import GaussianPolicy, QNetwork, DeterministicPolicy,ValueNetwork
 import numpy as np
 from torch.nn import KLDivLoss
 
@@ -31,15 +31,23 @@ class SAC(object):
         self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
         hard_update(self.critic_target, self.critic)
 
+        self.value_network = ValueNetwork(num_inputs, args.hidden_size).to(device=self.device)
+        self.value_optim = Adam(self.value_network.parameters(),lr=args.lr)
+
         self.eval_batch = eval_batch
 
         self.guided_policy = CUP_flag
 
         self.action_space = action_space
 
-        self.kl_scale = args.kl_scale
+        self.kl_scale = True if args.kl_scale > 1e-1 else False
 
         self.other_policy_list = other_policies
+
+        self.own_idx = own_idx
+
+        self.beta1 = 30
+        self.beta2 = 3e-3
 
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper
@@ -57,10 +65,11 @@ class SAC(object):
             #     torch.save(policy_dict, f"policy_{own_idx}.pth")
             # else:
             #     print(f"policy_{own_idx}.pth already exists")
-            if os.path.exists(f"policy_{own_idx}.pth"):
-                os.remove(f"policy_{own_idx}.pth")
-                policy_dict = self.policy.state_dict()
-                torch.save(policy_dict, f"policy_{own_idx}.pth")
+            if os.path.exists(f"policy_{self.own_idx}.pth"):
+                os.remove(f"policy_{self.own_idx}.pth")
+
+            policy_dict = self.policy.state_dict()
+            torch.save(policy_dict, f"policy_{self.own_idx}.pth")
 
                 
 
@@ -131,9 +140,11 @@ class SAC(object):
                 EA = min_qf_pi - self.alpha * log_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
-        
-        max_idx = np.argmax(advantages)
 
+
+        max_idx = np.argmax(advantages)
+        best_ea = advantages[max_idx]
+        
         best_policy_idx = other_policies[max_idx]
         best_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
         policy_dict = torch.load(best_policy_idx)
@@ -143,7 +154,7 @@ class SAC(object):
         best_actions_prob = best_policy.sample(states)[1]
 
         KL = self._KL(curr_actions_prob,best_actions_prob)
-        return KL
+        return KL,best_ea,states
 
 
     def select_action(self, state, evaluate=False):
@@ -172,13 +183,20 @@ class SAC(object):
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
             next_q_value = reward_batch + mask_batch * self.gamma * (min_qf_next_target)
         qf1, qf2 = self.critic(state_batch, action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
+        qV = self.value_network(state_batch)
         qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf_loss = qf1_loss + qf2_loss
 
+        qV_loss = F.mse_loss(qV,next_q_value)
+
         self.critic_optim.zero_grad()
         qf_loss.backward()
         self.critic_optim.step()
+
+        self.value_optim.zero_grad()
+        qV_loss.backward()
+        self.value_optim.step()
 
         pi, log_pi, _ = self.policy.sample(state_batch)
 
@@ -189,13 +207,24 @@ class SAC(object):
         KL = 0
         curr_mean = [0,0]
         curr_std = [0,0]
+        beta_s = 0
             
-        if self.guided_policy and guided_itr and self.kl_scale > 1e-2:
-            KL = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
-            policy_loss += KL*self.kl_scale
+        if self.guided_policy and guided_itr and self.kl_scale:
+            KL,EA,states = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
+            
+            with torch.no_grad():
+                V_tar = self.value_network(states)
+            
+            EA = torch.FloatTensor(EA)
+            V_tar = torch.mean(V_tar)
+
+            beta_s = self.beta1*torch.min(EA,self.beta2*V_tar)
+            
+            policy_loss += KL*beta_s
+
             curr_mean = self.policy.last_mean
             curr_std = self.policy.last_std
-        elif guided_itr and self.kl_scale < 1e-2:
+        elif guided_itr:
             curr_mean = self.policy.last_mean
             curr_std = self.policy.last_std
 
@@ -223,7 +252,7 @@ class SAC(object):
         if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)
 
-        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), KL, curr_mean, curr_std
+        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), KL, curr_mean, curr_std, beta_s
 
     # Save model parameters
     def save_checkpoint(self, env_name, suffix="", ckpt_path=None):

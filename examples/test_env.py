@@ -3,28 +3,34 @@ import pickle
 from gym.envs.registration import register
 import gym
 from f110_gym.envs.base_classes import Integrator
-with open("maps.pkl","rb") as f:
-    maps = pickle.load(f)
-    
-configs = maps
 
-if not os.path.exists("logs"):
-    os.makedirs("logs",exist_ok=True)
+def registerf1():
+    with open("maps.pkl","rb") as f:
+        maps = pickle.load(f)
+        
+    configs = maps
 
+    dir_path = os.path.dirname(os.path.realpath(__file__)).split('/')[:-1]
+    dir_path = '/'.join(dir_path)
 
-for i in configs:
-    i['map'] = i['map'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
-    i['waypoints'] = i['waypoints'].replace('/home/christo/Developer/thesis/f1tenth_gym_custom/examples','/home/caluckal/Developer/spring2024/thesis/f1tenth_gym_custom/examples')
-
-
-testing_config = configs[1:]
-current_config = testing_config[0]
-
-register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
+    for i in configs:
+        base_map = i['map']
+        base_wpt = i['waypoints']
+        i['map']=dir_path+base_map
+        i['waypoints']=dir_path+base_wpt
+        print(dir_path,base_map)
 
 
-env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-eval_env = gym.make('f110_gym:f110-cust-v0',config=configs[0], num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+    testing_config = configs[1:]
+    current_config = testing_config[0]
+
+    register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
+
+
+    env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+    eval_env = gym.make('f110_gym:f110-cust-v0',config=configs[0], num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+
+    return env,eval_env
 
 # print(eval_env.get_dummies())
 
@@ -44,12 +50,14 @@ def render_callback(env_renderer):
     e.top = top + 800
     e.bottom = bottom - 800
 
+_,eval_env = registerf1()
+
 eval_env.add_render_callback(render_callback)
 
 import numpy as np
 
 done = False
-obs = eval_env.reset(np.array([[0,0,0]]))
+obs = eval_env.reset(np.array([[0,0,np.pi/2]]))
 ep_reward = 0
 while not done:
     action = eval_env.action_space.sample()
