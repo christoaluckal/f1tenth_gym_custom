@@ -3,7 +3,7 @@ import argparse
 from scipy.interpolate import CubicSpline
 import math
 
-def averageKappa(waypoints, window_size=20):
+def averageKappa(waypoints, window_size=30):
         
     waypoints = np.array(waypoints)
     x = waypoints[:,0].flatten()
@@ -17,11 +17,11 @@ def averageKappa(waypoints, window_size=20):
         ts = np.linspace(0,window_size,len(xs))
         cx = CubicSpline(ts,xs)
         cy = CubicSpline(ts,ys)
-        xdot = cx(1)
-        ydot = cy(1)
-        xddot = cx(2)
-        yddot = cy(2)
-        kappa.append((xdot*yddot - ydot*xddot)/(xdot**2 + ydot**2)**1.5)
+        xdot = cx(ts,1)
+        ydot = cy(ts,1)
+        xddot = cx(ts,2)
+        yddot = cy(ts,2)
+        kappa.append(abs(xdot*yddot - ydot*xddot)/((xdot**2 + ydot**2)**1.5))
 
 
     return np.mean(kappa)
@@ -50,11 +50,12 @@ def main():
     import os
     import matplotlib.pyplot as plt
     map_location = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','gym','f110_gym','unittest')
+    gen_csv_loc = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','gym','f110_gym','unittest','generated.csv')
 
     from f110_gym.unittest.collate import getConfigList
     
     while True:
-        config_dict = getConfigList(csv_f=os.path.join(map_location,'generated.csv'),scale_search=1.5)
+        config_dict = getConfigList(csv_f=gen_csv_loc,scale_search=1.5)
         trs = config_dict['tr']
         scale = config_dict['scale']
         
@@ -83,6 +84,7 @@ def main():
     curvatures = []
 
     for i,config in enumerate(configs):
+        print(config)
         avg_kappa = averageKappa(np.loadtxt(config['waypoints'],delimiter=','))
         curvatures.append([i,avg_kappa])
         
@@ -93,14 +95,14 @@ def main():
     for i,curvature in enumerate(curvatures):
         print(f"Map {curvature[0]}: Kappa {curvature[1]}")
     
-    # n = int(math.ceil(len(curvatures)**0.5))
-    # fig, axs = plt.subplots(n,n,figsize=(15,15))
-    # for i,_ in enumerate(curvatures):
-    #     ax = axs[i//n,i%n]
-    #     ax.imshow(plt.imread(configs[curvatures[i][0]]['map']+'.png'))
-    #     ax.set_title(f"Map {curvatures[i][0]}: Kappa {curvatures[i][1]}")
+    n = int(math.ceil(len(curvatures)**0.5))
+    fig, axs = plt.subplots(n,n,figsize=(15,15))
+    for i,_ in enumerate(curvatures):
+        ax = axs[i//n,i%n]
+        ax.imshow(plt.imread(configs[curvatures[i][0]]['map']+'.png'))
+        ax.set_title(f"Map {curvatures[i][0]}: Kappa {curvatures[i][1]}")
     
-    # plt.show()
+    plt.show()
     
     '''
     fig, axs = plt.subplots(n,n,figsize=(15,15))
@@ -132,6 +134,13 @@ def main():
     
     print(final_configs)
     '''
+
+    eval_config = curvatures[0]
+    easy_config = curvatures[1]
+    medium_config = curvatures[len(curvatures)//2]
+    hard_config = curvatures[-1]
+
+    curvatures = [eval_config,easy_config,medium_config,hard_config]
     
     num_maps = 4
     selected_maps = [curvature[0] for curvature in curvatures[:num_maps]]
@@ -150,7 +159,17 @@ def main():
         ax.set_title(f"Map {i}")
         
     plt.show()
-    
+
+    for i,config in enumerate(final_configs):
+        map_loc = config['map']
+        map_loc = map_loc.split('f1tenth_gym_custom')[1]
+        config['map'] = map_loc
+
+        wpt_loc = config['waypoints']
+        wpt_loc = wpt_loc.split('f1tenth_gym_custom')[1]
+        config['waypoints'] = wpt_loc
+
+
     import pickle
     
     with open('maps.pkl','wb') as f:

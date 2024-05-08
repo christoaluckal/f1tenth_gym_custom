@@ -51,7 +51,7 @@ def getConfigList(csv_f=None,scale_search=None):
 
     for c in df["centroid"].unique():
         configs[c] = {'tr':[],'scale':0}
-        centroids.append(c)
+        centroids.append([c,len(df[df["centroid"]==c])])
 
     for c in df["cluster"].unique():
         dfc = df[df["cluster"]==c]
@@ -59,6 +59,9 @@ def getConfigList(csv_f=None,scale_search=None):
         for i in range(len(dfc)):
             tr = dfc.iloc[i]["turn_rate"]
             tr = math.ceil(tr*1000)
+            if tr < 100:
+                tr = f"0{tr}"
+
             scale = dfc.iloc[i]["scale"]
             scale = math.ceil(scale*10)
             configs[dfc.iloc[i]["centroid"]]['tr'].append(tr)
@@ -75,11 +78,11 @@ def getConfigList(csv_f=None,scale_search=None):
         else:
             print("Invalid index. Try again.")
     
-    return configs[centroids[idx]]
+    return configs[centroids[idx][0]]
         
     
 if __name__ == "__main__":
-    configs = getConfigList()
+    configs = getConfigList(scale_search=1.5)
     
     trs = configs['tr']
     scale = configs['scale']
@@ -90,7 +93,7 @@ if __name__ == "__main__":
     fig,ax = plt.subplots(n,n,figsize=(20,20))
     
     for i,tr in enumerate(trs):
-        im_loc = f"maps/map_{int(tr)}_{int(scale)}.png"
+        im_loc = f"maps/map_{str(tr)}_{int(scale)}.png"
         
         ax[i//n,i%n].imshow(plt.imread(im_loc))
         ax[i//n,i%n].set_title(f"TR: {tr}")
