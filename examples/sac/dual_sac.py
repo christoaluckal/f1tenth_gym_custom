@@ -4,7 +4,8 @@ from subprocess import call
 def run_exp(exp):
     call(exp, shell=True)
 
-kl_scales = [1, 3, 5, 10]
+# kl_scales = [1, 3, 5, 10]
+kl_scales = [1]
 for kl_scale in kl_scales:
     exp_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name config_1_{kl_scale*10} --cup_flag True --cuda --num_steps 500000 --kl_scale {kl_scale}"
     exp_2 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name config_2_{kl_scale*10} --cup_flag True --cuda --num_steps 500000 --kl_scale {kl_scale}"

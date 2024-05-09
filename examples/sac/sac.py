@@ -34,6 +34,9 @@ class SAC(object):
         self.value_network = ValueNetwork(num_inputs, args.hidden_size).to(device=self.device)
         self.value_optim = Adam(self.value_network.parameters(),lr=args.lr)
 
+        self.target_value_network = ValueNetwork(num_inputs, args.hidden_size).to(device=self.device)
+        hard_update(self.target_value_network, self.value_network)
+
         self.eval_batch = eval_batch
 
         self.guided_policy = CUP_flag
@@ -126,7 +129,8 @@ class SAC(object):
         states = torch.FloatTensor(states).to(self.device)
 
         advantages = []
-
+        v_advantages = []
+        values = []
         
         for p in other_policies:
             temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
@@ -136,14 +140,19 @@ class SAC(object):
             pi,log_pi, _ = temp_policy.sample(states)
             with torch.no_grad():
                 qf1_pi, qf2_pi = self.critic(states, pi)
+                qV = self.value_network(states)
                 min_qf_pi = torch.min(qf1_pi, qf2_pi)
                 EA = min_qf_pi - self.alpha * log_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
 
+                EA = min_qf_pi - self.alpha * log_pi - qV
+                EA = EA.mean()
+                qV_mean = qV.mean()
+                v_advantages.append(EA.cpu().numpy())
+                values.append(qV_mean.cpu().numpy())
 
         max_idx = np.argmax(advantages)
-        best_ea = advantages[max_idx]
         
         best_policy_idx = other_policies[max_idx]
         best_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
@@ -154,7 +163,19 @@ class SAC(object):
         best_actions_prob = best_policy.sample(states)[1]
 
         KL = self._KL(curr_actions_prob,best_actions_prob)
-        return KL,best_ea,states
+
+        term1 = v_advantages[max_idx]
+        term2 = self.beta2*values[max_idx]
+        
+        if term1 < term2:
+            beta_s = self.beta1*term1
+            return KL, beta_s, 0
+        else:
+            beta_s = self.beta1*term2
+            return KL, beta_s, 1
+
+
+        
 
 
     def select_action(self, state, evaluate=False):
@@ -182,44 +203,47 @@ class SAC(object):
             qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action)
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
             next_q_value = reward_batch + mask_batch * self.gamma * (min_qf_next_target)
+            predicted_value = self.value_network(state_batch)
+
+
         qf1, qf2 = self.critic(state_batch, action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
-        qV = self.value_network(state_batch)
         qf1_loss = F.mse_loss(qf1, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf2_loss = F.mse_loss(qf2, next_q_value)  # JQ = 𝔼(st,at)~D[0.5(Q1(st,at) - r(st,at) - γ(𝔼st+1~p[V(st+1)]))^2]
         qf_loss = qf1_loss + qf2_loss
 
-        qV_loss = F.mse_loss(qV,next_q_value)
-
         self.critic_optim.zero_grad()
         qf_loss.backward()
         self.critic_optim.step()
-
-        self.value_optim.zero_grad()
-        qV_loss.backward()
-        self.value_optim.step()
 
         pi, log_pi, _ = self.policy.sample(state_batch)
 
         qf1_pi, qf2_pi = self.critic(state_batch, pi)
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
 
+        # target_value = (min_qf_pi - (self.alpha * log_pi))
+        # value_loss = F.mse_loss(predicted_value,target_value)
+
+        min_qf_copy = torch.clone(min_qf_pi)
+        log_pi_copy = torch.clone(log_pi)
+        predicted_value_copy = torch.clone(predicted_value)
+
+        target_value = (min_qf_copy - (self.alpha * log_pi_copy))
+        value_loss = F.mse_loss(predicted_value_copy,target_value)
+
+        self.value_optim.zero_grad()
+        value_loss.backward(retain_graph=True)
+        self.value_optim.step()
+        
+
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean() # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
         KL = 0
         curr_mean = [0,0]
         curr_std = [0,0]
         beta_s = 0
+        idx = None
             
         if self.guided_policy and guided_itr and self.kl_scale:
-            KL,EA,states = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
-            
-            with torch.no_grad():
-                V_tar = self.value_network(states)
-            
-            EA = torch.FloatTensor(EA)
-            V_tar = torch.mean(V_tar)
-
-            beta_s = self.beta1*torch.min(EA,self.beta2*V_tar)
-            
+            KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
             policy_loss += KL*beta_s
 
             curr_mean = self.policy.last_mean
@@ -234,6 +258,8 @@ class SAC(object):
         self.policy_optim.zero_grad()
         policy_loss.backward()
         self.policy_optim.step()
+
+        
 
         if self.automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
@@ -252,7 +278,7 @@ class SAC(object):
         if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)
 
-        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), KL, curr_mean, curr_std, beta_s
+        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), KL, curr_mean, curr_std, beta_s, idx
 
     # Save model parameters
     def save_checkpoint(self, env_name, suffix="", ckpt_path=None):

@@ -130,7 +130,7 @@ memory = ReplayMemory(args.replay_size, args.seed)
 # Training Loop
 total_numsteps = 0
 updates = 0
-update_freq = 5
+update_freq = 25
 
 for i_episode in itertools.count(1):
     episode_reward = 0
@@ -150,17 +150,23 @@ for i_episode in itertools.count(1):
                 # Update parameters of all the networks
                 # try:
                 if i_episode % update_freq == 0:
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
                 else:
-                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta = agent.update_parameters(memory, args.batch_size, updates)
+                    critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates)
                 
                 if i_episode % update_freq == 0:
                     if args.kl_scale > 0:
-                        writer.add_scalar('div/kl_scaled', kl, updates)
-                        writer.add_scalar('div/kl_original', kl/args.kl_scale, updates)
+                        writer.add_scalar('div/kl_scaled', kl*beta, updates)
+                        writer.add_scalar('div/beta_s', beta, updates)
+                        writer.add_scalar('div/kl_original', kl, updates)
+                        if idx is not None:
+                            writer.add_scalar('div/idx',idx,updates)
                     else:
                         writer.add_scalar('div/kl_scaled', 0, updates)
+                        writer.add_scalar('div/beta_s', 0, updates)
                         writer.add_scalar('div/kl_original', 0, updates)
+                        if idx is not None:
+                            writer.add_scalar('div/idx',idx,updates)
 
                     if type(mu) == torch.Tensor:
                         mu = mu.cpu().detach().numpy()
