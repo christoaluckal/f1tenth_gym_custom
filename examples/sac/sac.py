@@ -11,7 +11,7 @@ kl_div = KLDivLoss(reduction='batchmean')
 
 
 class SAC(object):
-    def __init__(self, num_inputs, action_space, args, eval_batch=None, CUP_flag=False, other_policies=None,own_idx=1):
+    def __init__(self, num_inputs, action_space, args, eval_batch=None, CUP_flag=False, other_policies=None,own_idx=1,beta1=1,beta2=1):
 
         self.gamma = args.gamma
         self.tau = args.tau
@@ -49,8 +49,18 @@ class SAC(object):
 
         self.own_idx = own_idx
 
-        self.beta1 = 30
-        self.beta2 = 3e-3
+        if beta1 == 0 or beta2 == 0:
+            self.kl_scale = False
+
+        else:
+
+            if self.guided_policy:
+                self.beta1 = beta1
+                self.beta2 = beta2
+                self.kl_scale = True
+            else:
+                self.kl_scale = False        
+
 
         if self.policy_type == "Gaussian":
             # Target Entropy = −dim(A) (e.g. , -6 for HalfCheetah-v2) as given in the paper

@@ -7,11 +7,52 @@ import torch
 from sac import SAC
 from torch.utils.tensorboard import SummaryWriter
 from replay_memory import ReplayMemory
+import yaml
+from gym.envs.registration import register
+
+def register_f110(idx=1):
+    import os
+    import pickle
+    
+    import gym
+    from f110_gym.envs.base_classes import Integrator
+    with open("../maps.pkl","rb") as f:
+        maps = pickle.load(f)
+        
+    configs = maps
+
+    dir_path = os.path.dirname(os.path.realpath(__file__)).split('/')[:-2]
+    dir_path = '/'.join(dir_path)
+
+    for i in configs:
+        base_map = i['map']
+        base_wpt = i['waypoints']
+        i['map']=dir_path+base_map
+        i['waypoints']=dir_path+base_wpt
+
+    testing_config = configs[1:]
+    current_config = testing_config[idx-1]
+
+    register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
+
+    eval_env = gym.make('f110_gym:f110-cust-v0',config=configs[0], num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+    env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+
+    return env, eval_env
+
 from envs.lunar_lander.lunar_lander import LunarLander
-import os
+
+def register_lunarlander():
+    # register('LunarLanderCustom-v2', entry_point='envs.lunar_lander.lunar_lander:LunarLander', max_episode_steps=1000)
+    # env = gym.make('LunarLanderCustom-v2')
+    # eval_env = gym.make('LunarLander-v2')
+    env = LunarLander(render_mode='human',continuous=True)
+    eval_env = LunarLander(render_mode='human',continuous=True)
+    return env, eval_env
 
 parser = argparse.ArgumentParser(description='PyTorch Soft Actor-Critic Args')
-parser.add_argument('--env-name', default="test")
+parser.add_argument('--env-name', default="HalfCheetah-v2",
+                    help='Mujoco Gym environment (default: HalfCheetah-v2)')
 parser.add_argument('--policy', default="Gaussian",
                     help='Policy Type: Gaussian | Deterministic (default: Gaussian)')
 parser.add_argument('--eval', type=bool, default=True,
@@ -49,68 +90,12 @@ parser.add_argument('--kl_scale', type=float, default=2)
 parser.add_argument('--own_policy_idx',type=int,default=1)
 parser.add_argument('--config', type=int, default=1)
 parser.add_argument('--cup_flag', type=bool, default=False)
-parser.add_argument('--beta1',type=float,default=30)
-parser.add_argument('--beta2',type=float,default=3e-3)
-parser.add_argument('--total_configs',type=int,default=3)
 args = parser.parse_args()
 
 
-def register_f110(idx=1):
-    import os
-    import pickle
-    from gym.envs.registration import register
-    import gym
-    from f110_gym.envs.base_classes import Integrator
-    with open("../maps.pkl","rb") as f:
-        maps = pickle.load(f)
-        
-    configs = maps
+env,eval_env = register_lunarlander()
 
-    dir_path = os.path.dirname(os.path.realpath(__file__)).split('/')[:-2]
-    dir_path = '/'.join(dir_path)
-
-    for i in configs:
-        base_map = i['map']
-        base_wpt = i['waypoints']
-        i['map']=dir_path+base_map
-        i['waypoints']=dir_path+base_wpt
-
-    testing_config = configs[1:]
-    current_config = testing_config[idx-1]
-
-    register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
-
-    eval_env = gym.make('f110_gym:f110-cust-v0',config=configs[0], num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-    env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-
-    eval_batch = eval_env.get_dummies()
-
-    return env, eval_batch
-
-def register_lunarlander(config=1):
-    windpower = 15+config
-    turbulence = 1.5+config/10
-    env = LunarLander(continuous=True,enable_wind=True,wind_power=windpower,turbulence_power=turbulence)
-    print(f"Wind Power: {windpower}, Turbulence Power: {turbulence}")
-
-    if os.path.exists('envs/lunar_lander/eval_batch.npy'):
-        eval_batch = np.load('envs/lunar_lander/eval_batch.npy')
-    else:
-        raise Exception("Eval batch not found")
-
-    return env, eval_batch
-
-
-
-if "f110" in args.env_name:
-    env,eval_batch = register_f110(args.config)
-
-elif "lunar" in args.env_name:
-    env,eval_batch = register_lunarlander(args.config)
-
-own_policy_name = f"policy_{args.own_policy_idx}.pth"
-
-other_policies = [f"policy_{i}.pth" for i in range(1,args.total_configs+1) if i!=args.own_policy_idx]
+print(env.observation_space.shape[0])
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
@@ -121,12 +106,7 @@ writer = SummaryWriter(experiment)
 agent = SAC(env.observation_space.shape[0], 
             env.action_space, 
             args,
-            eval_batch=eval_batch,
             CUP_flag=args.cup_flag,
-            other_policies=other_policies,
-            own_idx=args.own_policy_idx,
-            beta1=args.beta1,
-            beta2=args.beta2,
             )
 
 # Memory
@@ -144,7 +124,6 @@ for i_episode in itertools.count(1):
     state = env.reset()
 
     while not done:
-        # env.render()
         if args.start_steps > total_numsteps:
             action = env.action_space.sample()  # Sample random action
         else:
@@ -154,55 +133,13 @@ for i_episode in itertools.count(1):
             # Number of updates per step in environment
             for i in range(args.updates_per_step):
                 # Update parameters of all the networks
-                try:
-                    if i_episode % update_freq == 0:
-                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
-                    else:
-                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates)
-                    
-                    if i_episode % update_freq == 0:
-                        if args.kl_scale > 0:
-                            writer.add_scalar('div/kl_scaled', kl*beta, updates)
-                            writer.add_scalar('div/beta_s', beta, updates)
-                            writer.add_scalar('div/kl_original', kl, updates)
-                            if idx is not None:
-                                writer.add_scalar('div/idx',idx,updates)
-                        else:
-                            writer.add_scalar('div/kl_scaled', 0, updates)
-                            writer.add_scalar('div/beta_s', 0, updates)
-                            writer.add_scalar('div/kl_original', 0, updates)
-                            if idx is not None:
-                                writer.add_scalar('div/idx',idx,updates)
+                # try:
+                critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=False)
+                updates += 1
 
-                        if type(mu) == torch.Tensor:
-                            mu = mu.cpu().detach().numpy()
-                            sig = sig.cpu().detach().numpy()
-
-                            mean_mu = np.mean(mu,axis=0)
-                            mean_sig = np.mean(sig,axis=0)
-
-                            # writer.add_scalar('div/steer_mu', mean_mu[0], updates)
-                            # writer.add_scalar('div/steer_sig', mean_sig[0], updates)
-                            # writer.add_scalar('div/speed_mu', mean_mu[1], updates)
-                            # writer.add_scalar('div/speed_sig', mean_sig[1], updates)
-
-                        writer.add_scalar('beta/beta1',args.beta1,updates)
-                        writer.add_scalar('beta/beta2',args.beta2,updates)
-
-
-                    if updates % update_freq == 0:
-                        # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
-                        # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
-                        writer.add_scalar('loss/policy', policy_loss, updates)
-                        writer.add_scalar('loss/entropy_loss', ent_loss, updates)
-                        # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
-
-                        
-                    updates += 1
-
-                except Exception as e:
-                    print(e)
-                    continue
+                # except Exception as e:
+                #     print(e)
+                #     continue
 
         
         next_state, reward, done, _, _ = env.step(action) # Step
@@ -257,8 +194,5 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-    if i_episode % 10 == 0 and args.cup_flag:
-        policy = agent.policy.state_dict()
-        torch.save(policy, own_policy_name)
 env.close()
 
