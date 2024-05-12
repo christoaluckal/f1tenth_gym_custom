@@ -88,8 +88,14 @@ def register_f110(idx=1):
     return env, eval_batch
 
 def register_lunarlander(config=1):
-    windpower = 15+config
-    turbulence = 1.5+config/10
+    windpower = 5*config
+    if config == 1:
+        turbulence = 0.5
+    elif config == 2:
+        turbulence = 1
+    elif config == 3:
+        turbulence = 2
+        
     env = LunarLander(continuous=True,enable_wind=True,wind_power=windpower,turbulence_power=turbulence)
     print(f"Wind Power: {windpower}, Turbulence Power: {turbulence}")
 
