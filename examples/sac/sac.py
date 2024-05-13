@@ -19,9 +19,10 @@ class SAC(object):
                  CUP_flag=False, 
                  other_policies=None,
                  own_idx=1,
-                 beta1=1,
-                 beta2=1,
-                 adaptive=False):
+                 beta1=0,
+                 beta2=0,
+                 adaptive=False,
+                 kl_scale=30):
 
         self.gamma = args.gamma
         self.tau = args.tau
@@ -49,11 +50,11 @@ class SAC(object):
 
         self.eval_batch = eval_batch
 
-        self.guided_policy = CUP_flag
+        self.CUP_flag = CUP_flag
 
         self.action_space = action_space
 
-        self.kl_scale = args.kl_scale
+        self.kl_scale = kl_scale
 
         self.other_policy_list = other_policies
 
@@ -61,38 +62,38 @@ class SAC(object):
 
         self.adaptive = adaptive
 
-        
 
         # if beta1 == 0 or beta2 == 0:
         #     self.kl_scale = False
 
         # else:
 
-        #     if self.guided_policy:
+        #     if self.CUP_flag:
         #         self.beta1 = beta1
         #         self.beta2 = beta2
         #         self.kl_scale = True
         #     else:
         #         self.kl_scale = False
 
-        if self.guided_policy:
-            if beta1 != 0 or beta2 != 0:
-                if self.adaptive:
-                    self.beta1 = beta1
-                    self.beta2 = beta2
-                    self.kl_scale = 1
+        if self.CUP_flag:
+            if self.adaptive:
+                self.beta1 = beta1
+                self.beta2 = beta2
+                self.kl_scale = 0
             else:
-                self.kl_scale = args.kl_scale
-
+                self.beta1 = 0
+                self.beta2 = 0
+                self.kl_scale = kl_scale
         else:
             self.beta1 = 0
             self.beta2 = 0
-            self.kl_scale = 0
+            self.kl_scale = 1
+
 
         info_dict = {
             "Config": args.config,
             "Own Policy Index": own_idx,
-            "Guided Policy": self.guided_policy,
+            "Guided Policy": self.CUP_flag,
             "Adaptive": self.adaptive,
             "Beta1": beta1,
             "Beta2": beta2,
@@ -298,7 +299,7 @@ class SAC(object):
         beta_s = 0
         idx = None
             
-        # if self.guided_policy and guided_itr and self.kl_scale:
+        # if self.CUP_flag and guided_itr and self.kl_scale:
         #     KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
         #     policy_loss += KL*beta_s
 
@@ -308,7 +309,7 @@ class SAC(object):
         #     curr_mean = self.policy.last_mean
         #     curr_std = self.policy.last_std
 
-        if self.guided_policy:
+        if self.CUP_flag:
             if guided_itr:
                 if self.adaptive:
                     KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
@@ -321,10 +322,18 @@ class SAC(object):
                 else:
                     KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
 
-                    policy_loss += KL*self.kl_scale
+                    beta_s = self.kl_scale
+
+                    policy_loss += KL*beta_s
 
                     curr_mean = self.policy.last_mean
                     curr_std = self.policy.last_std
+        else:
+            curr_mean = self.policy.last_mean
+            curr_std = self.policy.last_std
+            KL = 0
+            beta_s = 0
+            idx = None
                 
 
 

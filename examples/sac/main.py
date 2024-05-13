@@ -47,11 +47,11 @@ parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
 parser.add_argument('--own_policy_idx',type=int,default=1)
 parser.add_argument('--config', type=int, default=1)
-parser.add_argument('--cup_flag', type=bool, default=False)
-parser.add_argument('--kl_scale', type=float, default=2)
+parser.add_argument('--cup_flag', type=bool, default=True)
+parser.add_argument('--kl_scale', type=float, default=10)
 parser.add_argument('--adaptive', default=False, action="store_true")
-parser.add_argument('--beta1',type=float,default=30)
-parser.add_argument('--beta2',type=float,default=3e-3)
+parser.add_argument('--beta1',type=float,default=0)
+parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
 args = parser.parse_args()
 
@@ -128,13 +128,14 @@ writer = SummaryWriter(experiment)
 agent = SAC(env.observation_space.shape[0], 
             env.action_space, 
             args,
-            eval_batch=eval_batch,
-            CUP_flag=args.cup_flag,
-            adaptive=args.adaptive,
+            eval_batch=eval_batch,         
             other_policies=other_policies,
             own_idx=args.own_policy_idx,
+            kl_scale=args.kl_scale,
             beta1=args.beta1,
             beta2=args.beta2,
+            CUP_flag=args.cup_flag,
+            adaptive=args.adaptive,
             )
 
 # Memory
@@ -168,43 +169,61 @@ for i_episode in itertools.count(1):
                     else:
                         critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates)
                     
+                    # if i_episode % update_freq == 0:
+                    #     if args.kl_scale > 0:
+                    #         writer.add_scalar('div/kl_scaled', kl*beta, updates)
+
+                    #         if args.adaptive:
+                    #             writer.add_scalar('div/beta_s', beta, updates)
+                    #         else:
+                    #             writer.add_scalar('div/scale', beta, updates)
+
+                    #         writer.add_scalar('div/kl_original', kl, updates)
+                    #         if idx is not None:
+                    #             writer.add_scalar('div/idx',idx,updates)
+                    #     else:
+                    #         writer.add_scalar('div/kl_scaled', 0, updates)
+                    #         if args.adaptive:
+                    #             writer.add_scalar('div/beta_s', 0, updates)
+                    #         else:
+                    #             writer.add_scalar('div/scale', 0, updates)
+                    #         writer.add_scalar('div/kl_original', 0, updates)
+                    #         if idx is not None:
+                    #             writer.add_scalar('div/idx',idx,updates)
+
+                    #     if type(mu) == torch.Tensor:
+                    #         mu = mu.cpu().detach().numpy()
+                    #         sig = sig.cpu().detach().numpy()
+
+                    #         mean_mu = np.mean(mu,axis=0)
+                    #         mean_sig = np.mean(sig,axis=0)
+
+                    #         # writer.add_scalar('div/steer_mu', mean_mu[0], updates)
+                    #         # writer.add_scalar('div/steer_sig', mean_sig[0], updates)
+                    #         # writer.add_scalar('div/speed_mu', mean_mu[1], updates)
+                    #         # writer.add_scalar('div/speed_sig', mean_sig[1], updates)
+
+                    #     writer.add_scalar('beta/beta1',args.beta1,updates)
+                    #     writer.add_scalar('beta/beta2',args.beta2,updates)
+
                     if i_episode % update_freq == 0:
-                        if args.kl_scale > 0:
-                            writer.add_scalar('div/kl_scaled', kl*beta, updates)
-
-                            if args.adaptive:
-                                writer.add_scalar('div/beta_s', beta, updates)
-                            else:
-                                writer.add_scalar('div/scale', beta, updates)
-
+                        if args.cup_flag:
+                            writer.add_scalar('div/beta1', args.beta1, updates)
+                            writer.add_scalar('div/beta2', args.beta2, updates)
+                            writer.add_scalar('div/kl_scale', args.kl_scale, updates)
                             writer.add_scalar('div/kl_original', kl, updates)
+                            writer.add_scalar('div/kl_scaled', kl*beta, updates)
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
                         else:
-                            writer.add_scalar('div/kl_scaled', 0, updates)
-                            if args.adaptive:
-                                writer.add_scalar('div/beta_s', 0, updates)
-                            else:
-                                writer.add_scalar('div/scale', 0, updates)
+                            writer.add_scalar('div/beta1', 0, updates)
+                            writer.add_scalar('div/beta2', 0, updates)
+                            writer.add_scalar('div/kl_scale', 0, updates)
                             writer.add_scalar('div/kl_original', 0, updates)
+                            writer.add_scalar('div/kl_scaled', 0, updates)
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
-
-                        if type(mu) == torch.Tensor:
-                            mu = mu.cpu().detach().numpy()
-                            sig = sig.cpu().detach().numpy()
-
-                            mean_mu = np.mean(mu,axis=0)
-                            mean_sig = np.mean(sig,axis=0)
-
-                            # writer.add_scalar('div/steer_mu', mean_mu[0], updates)
-                            # writer.add_scalar('div/steer_sig', mean_sig[0], updates)
-                            # writer.add_scalar('div/speed_mu', mean_mu[1], updates)
-                            # writer.add_scalar('div/speed_sig', mean_sig[1], updates)
-
-                        writer.add_scalar('beta/beta1',args.beta1,updates)
-                        writer.add_scalar('beta/beta2',args.beta2,updates)
-
+  
 
                     if updates % update_freq == 0:
                         # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
@@ -244,7 +263,7 @@ for i_episode in itertools.count(1):
         break
 
     writer.add_scalar('reward/train', episode_reward, i_episode)
-    print("Config: {}|{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+    print("Config: {}|{}|{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,str('adp') if args.adaptive else str('sta'),i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
 
     if i_episode % 10 == 0 and args.eval is True:
         avg_reward = 0.
