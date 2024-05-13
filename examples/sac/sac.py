@@ -11,7 +11,17 @@ kl_div = KLDivLoss(reduction='batchmean')
 
 
 class SAC(object):
-    def __init__(self, num_inputs, action_space, args, eval_batch=None, CUP_flag=False, other_policies=None,own_idx=1,beta1=1,beta2=1):
+    def __init__(self, 
+                 num_inputs, 
+                 action_space, 
+                 args, 
+                 eval_batch=None, 
+                 CUP_flag=False, 
+                 other_policies=None,
+                 own_idx=1,
+                 beta1=1,
+                 beta2=1,
+                 adaptive=False):
 
         self.gamma = args.gamma
         self.tau = args.tau
@@ -43,23 +53,56 @@ class SAC(object):
 
         self.action_space = action_space
 
-        self.kl_scale = True if args.kl_scale > 1e-1 else False
+        self.kl_scale = args.kl_scale
 
         self.other_policy_list = other_policies
 
         self.own_idx = own_idx
 
-        if beta1 == 0 or beta2 == 0:
-            self.kl_scale = False
+        self.adaptive = adaptive
+
+        
+
+        # if beta1 == 0 or beta2 == 0:
+        #     self.kl_scale = False
+
+        # else:
+
+        #     if self.guided_policy:
+        #         self.beta1 = beta1
+        #         self.beta2 = beta2
+        #         self.kl_scale = True
+        #     else:
+        #         self.kl_scale = False
+
+        if self.guided_policy:
+            if beta1 != 0 or beta2 != 0:
+                if self.adaptive:
+                    self.beta1 = beta1
+                    self.beta2 = beta2
+                    self.kl_scale = 1
+            else:
+                self.kl_scale = args.kl_scale
 
         else:
+            self.beta1 = 0
+            self.beta2 = 0
+            self.kl_scale = 0
 
-            if self.guided_policy:
-                self.beta1 = beta1
-                self.beta2 = beta2
-                self.kl_scale = True
-            else:
-                self.kl_scale = False        
+        info_dict = {
+            "Config": args.config,
+            "Own Policy Index": own_idx,
+            "Guided Policy": self.guided_policy,
+            "Adaptive": self.adaptive,
+            "Beta1": beta1,
+            "Beta2": beta2,
+            "KL Scale": self.kl_scale,
+            "Other Policies": other_policies
+        }
+
+        from pprint import pprint
+        pprint(info_dict,indent=4)
+
 
 
         if self.policy_type == "Gaussian":
@@ -78,11 +121,11 @@ class SAC(object):
             #     torch.save(policy_dict, f"policy_{own_idx}.pth")
             # else:
             #     print(f"policy_{own_idx}.pth already exists")
-            if os.path.exists(f"policy_{self.own_idx}.pth"):
-                os.remove(f"policy_{self.own_idx}.pth")
+            if os.path.exists(f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}.pth"):
+                os.remove(f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}.pth")
 
             policy_dict = self.policy.state_dict()
-            torch.save(policy_dict, f"policy_{self.own_idx}.pth")
+            torch.save(policy_dict, f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}.pth")
 
                 
 
@@ -176,13 +219,16 @@ class SAC(object):
 
         term1 = v_advantages[max_idx]
         term2 = self.beta2*values[max_idx]
-        
-        if term1 < term2:
-            beta_s = self.beta1*term1
-            return KL, beta_s, 0
+
+        if self.adaptive: 
+            if term1 < term2:
+                beta_s = self.beta1*term1
+                return KL, beta_s, 1
+            else:
+                beta_s = self.beta1*term2
+                return KL, beta_s, 2
         else:
-            beta_s = self.beta1*term2
-            return KL, beta_s, 1
+            return KL, self.kl_scale, 0
 
 
         
@@ -252,17 +298,34 @@ class SAC(object):
         beta_s = 0
         idx = None
             
-        if self.guided_policy and guided_itr and self.kl_scale:
-            KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
-            policy_loss += KL*beta_s
+        # if self.guided_policy and guided_itr and self.kl_scale:
+        #     KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
+        #     policy_loss += KL*beta_s
 
-            curr_mean = self.policy.last_mean
-            curr_std = self.policy.last_std
-        elif guided_itr:
-            curr_mean = self.policy.last_mean
-            curr_std = self.policy.last_std
+        #     curr_mean = self.policy.last_mean
+        #     curr_std = self.policy.last_std
+        # elif guided_itr:
+        #     curr_mean = self.policy.last_mean
+        #     curr_std = self.policy.last_std
 
+        if self.guided_policy:
+            if guided_itr:
+                if self.adaptive:
+                    KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
 
+                    policy_loss += KL*beta_s
+
+                    curr_mean = self.policy.last_mean
+                    curr_std = self.policy.last_std
+
+                else:
+                    KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
+
+                    policy_loss += KL*self.kl_scale
+
+                    curr_mean = self.policy.last_mean
+                    curr_std = self.policy.last_std
+                
 
 
         self.policy_optim.zero_grad()

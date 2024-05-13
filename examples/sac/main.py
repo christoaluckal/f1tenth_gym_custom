@@ -45,10 +45,11 @@ parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
 parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
-parser.add_argument('--kl_scale', type=float, default=2)
 parser.add_argument('--own_policy_idx',type=int,default=1)
 parser.add_argument('--config', type=int, default=1)
 parser.add_argument('--cup_flag', type=bool, default=False)
+parser.add_argument('--kl_scale', type=float, default=2)
+parser.add_argument('--adaptive', default=False, action="store_true")
 parser.add_argument('--beta1',type=float,default=30)
 parser.add_argument('--beta2',type=float,default=3e-3)
 parser.add_argument('--total_configs',type=int,default=3)
@@ -90,12 +91,12 @@ def register_f110(idx=1):
 def register_lunarlander(config=1):
     windpower = 5*config
     if config == 1:
-        turbulence = 0.5
-    elif config == 2:
         turbulence = 1
+    elif config == 2:
+        turbulence = 4
     elif config == 3:
-        turbulence = 2
-        
+        turbulence = 8
+
     env = LunarLander(continuous=True,enable_wind=True,wind_power=windpower,turbulence_power=turbulence)
     print(f"Wind Power: {windpower}, Turbulence Power: {turbulence}")
 
@@ -114,9 +115,9 @@ if "f110" in args.env_name:
 elif "lunar" in args.env_name:
     env,eval_batch = register_lunarlander(args.config)
 
-own_policy_name = f"policy_{args.own_policy_idx}.pth"
+own_policy_name = f"policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}.pth"
 
-other_policies = [f"policy_{i}.pth" for i in range(1,args.total_configs+1) if i!=args.own_policy_idx]
+other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}.pth" for i in range(1,args.total_configs+1) if i!=args.own_policy_idx]
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
@@ -129,6 +130,7 @@ agent = SAC(env.observation_space.shape[0],
             args,
             eval_batch=eval_batch,
             CUP_flag=args.cup_flag,
+            adaptive=args.adaptive,
             other_policies=other_policies,
             own_idx=args.own_policy_idx,
             beta1=args.beta1,
@@ -169,13 +171,21 @@ for i_episode in itertools.count(1):
                     if i_episode % update_freq == 0:
                         if args.kl_scale > 0:
                             writer.add_scalar('div/kl_scaled', kl*beta, updates)
-                            writer.add_scalar('div/beta_s', beta, updates)
+
+                            if args.adaptive:
+                                writer.add_scalar('div/beta_s', beta, updates)
+                            else:
+                                writer.add_scalar('div/scale', beta, updates)
+
                             writer.add_scalar('div/kl_original', kl, updates)
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
                         else:
                             writer.add_scalar('div/kl_scaled', 0, updates)
-                            writer.add_scalar('div/beta_s', 0, updates)
+                            if args.adaptive:
+                                writer.add_scalar('div/beta_s', 0, updates)
+                            else:
+                                writer.add_scalar('div/scale', 0, updates)
                             writer.add_scalar('div/kl_original', 0, updates)
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
@@ -260,7 +270,7 @@ for i_episode in itertools.count(1):
         writer.add_scalar('avg_reward/test', avg_reward, i_episode)
 
         print("----------------------------------------")
-        print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,episodes, round(avg_reward, 2)))
+        print("Config: {}|{}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,args.adaptive,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
     if i_episode % 10 == 0 and args.cup_flag:

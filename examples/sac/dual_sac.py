@@ -14,14 +14,23 @@ kl_scales = []
 
 beta1s = [random.randint(0, 50) for _ in range(10)]
 beta2s = [random.randint(1, 5)*(10**(-random.randint(0, 3))) for _ in range(10)]
+beta1s.insert(0, 0)
+beta2s.insert(0, 0)
 
 kl_scales = zip(beta1s, beta2s)
 
 for idx,kl_scale in enumerate(kl_scales):
-    exp_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_{idx} --cup_flag True --cuda --num_steps 500000 --beta1 {kl_scale[0]} --beta2 {kl_scale[1]}"
-    exp_2 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_{idx} --cup_flag True --cuda --num_steps 500000 --beta1 {kl_scale[0]} --beta2 {kl_scale[1]}"
-    exp_3 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_{idx} --cup_flag True --cuda --num_steps 500000 --beta1 {kl_scale[0]} --beta2 {kl_scale[1]}"
-    processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp_1, exp_2, exp_3]]
+    exp_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_adp_1_{idx} --cup_flag True --cuda --num_steps 500000 --beta1 {kl_scale[0]} --beta2 {kl_scale[1]} --adaptive"
+    exp_2 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_adp_2_{idx} --cup_flag True --cuda --num_steps 500000 --beta1 {kl_scale[0]} --beta2 {kl_scale[1]} --adaptive"
+    exp_3 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_adp_3_{idx} --cup_flag True --cuda --num_steps 500000 --beta1 {kl_scale[0]} --beta2 {kl_scale[1]} --adaptive"
+    
+    kls = random.randint(1, 3)*(10**(random.randint(0,1)))
+
+    exp_1_na = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_sta_1_{idx} --cup_flag True --cuda --num_steps 500000 --kl_scale {kls}"
+    exp_2_na = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_sta_2_{idx} --cup_flag True --cuda --num_steps 500000 --kl_scale {kls}"
+    exp_3_na = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_sta_3_{idx} --cup_flag True --cuda --num_steps 500000 --kl_scale {kls}"
+
+    processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp_1, exp_2, exp_3, exp_1_na, exp_2_na, exp_3_na]]
 
     for p in processes:
         p.start()
