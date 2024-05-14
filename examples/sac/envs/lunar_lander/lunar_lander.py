@@ -595,7 +595,7 @@ class LunarLander(gym.Env, EzPickle):
         self.steps += 1
 
         terminated = False
-        if self.game_over or abs(state[0]) >= 1.0 or self.steps > 1000:
+        if self.game_over or abs(state[0]) >= 1.0 or self.steps > 600:
             terminated = True
             reward = -100
         if not self.lander.awake:
