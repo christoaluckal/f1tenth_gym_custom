@@ -42,11 +42,17 @@ class SAC(object):
         self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
         hard_update(self.critic_target, self.critic)
 
-        self.value_network = ValueNetwork(num_inputs, args.hidden_size).to(device=self.device)
-        self.value_optim = Adam(self.value_network.parameters(),lr=args.lr)
+        self.adaptive = adaptive
 
-        self.target_value_network = ValueNetwork(num_inputs, args.hidden_size).to(device=self.device)
-        hard_update(self.target_value_network, self.value_network)
+        if self.adaptive:
+
+            self.value_network = ValueNetwork(num_inputs, args.hidden_size).to(device=self.device)
+            self.value_optim = Adam(self.value_network.parameters(),lr=args.lr)
+        
+        else:
+            self.value_network = None
+            self.value_optim = None
+
 
         self.eval_batch = eval_batch
 
@@ -60,7 +66,7 @@ class SAC(object):
 
         self.own_idx = own_idx
 
-        self.adaptive = adaptive
+        
 
 
         # if beta1 == 0 or beta2 == 0:
@@ -194,17 +200,18 @@ class SAC(object):
             pi,log_pi, _ = temp_policy.sample(states)
             with torch.no_grad():
                 qf1_pi, qf2_pi = self.critic(states, pi)
-                qV = self.value_network(states)
+                
                 min_qf_pi = torch.min(qf1_pi, qf2_pi)
                 EA = min_qf_pi - self.alpha * log_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
-
-                EA = min_qf_pi - self.alpha * log_pi - qV
-                EA = EA.mean()
-                qV_mean = qV.mean()
-                v_advantages.append(EA.cpu().numpy())
-                values.append(qV_mean.cpu().numpy())
+                if self.adaptive:
+                    qV = self.value_network(states)
+                    EA = min_qf_pi - self.alpha * log_pi - qV
+                    EA = EA.mean()
+                    qV_mean = qV.mean()
+                    v_advantages.append(EA.cpu().numpy())
+                    values.append(qV_mean.cpu().numpy())
 
         max_idx = np.argmax(advantages)
         
@@ -218,10 +225,9 @@ class SAC(object):
 
         KL = self._KL(curr_actions_prob,best_actions_prob)
 
-        term1 = v_advantages[max_idx]
-        term2 = self.beta2*values[max_idx]
-
-        if self.adaptive: 
+        if self.adaptive:
+            term1 = v_advantages[max_idx]
+            term2 = self.beta2*values[max_idx]
             if term1 < term2:
                 beta_s = self.beta1*term1
                 return KL, beta_s, 1
@@ -260,7 +266,8 @@ class SAC(object):
             qf1_next_target, qf2_next_target = self.critic_target(next_state_batch, next_state_action)
             min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - self.alpha * next_state_log_pi
             next_q_value = reward_batch + mask_batch * self.gamma * (min_qf_next_target)
-            predicted_value = self.value_network(state_batch)
+            if self.adaptive:
+                predicted_value = self.value_network(state_batch)
 
 
         qf1, qf2 = self.critic(state_batch, action_batch)  # Two Q-functions to mitigate positive bias in the policy improvement step
@@ -279,17 +286,17 @@ class SAC(object):
 
         # target_value = (min_qf_pi - (self.alpha * log_pi))
         # value_loss = F.mse_loss(predicted_value,target_value)
+        if self.adaptive:
+            min_qf_copy = torch.clone(min_qf_pi)
+            log_pi_copy = torch.clone(log_pi)
+            predicted_value_copy = torch.clone(predicted_value)
 
-        min_qf_copy = torch.clone(min_qf_pi)
-        log_pi_copy = torch.clone(log_pi)
-        predicted_value_copy = torch.clone(predicted_value)
+            target_value = (min_qf_copy - (self.alpha * log_pi_copy))
+            value_loss = F.mse_loss(predicted_value_copy,target_value)
 
-        target_value = (min_qf_copy - (self.alpha * log_pi_copy))
-        value_loss = F.mse_loss(predicted_value_copy,target_value)
-
-        self.value_optim.zero_grad()
-        value_loss.backward(retain_graph=True)
-        self.value_optim.step()
+            self.value_optim.zero_grad()
+            value_loss.backward(retain_graph=True)
+            self.value_optim.step()
         
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean() # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]

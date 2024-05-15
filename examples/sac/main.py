@@ -53,6 +53,7 @@ parser.add_argument('--adaptive', default=False, action="store_true")
 parser.add_argument('--beta1',type=float,default=0)
 parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
+parser.add_argument('--warmup',type=int,default=15000)
 args = parser.parse_args()
 
 np.random.seed(args.seed)
@@ -125,6 +126,11 @@ experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{arg
 #Tensorboard
 writer = SummaryWriter(experiment)
 
+if args.warmup > 0:
+    warmup_flag = False
+else:
+    warmup_flag = True
+
 # Agent
 agent = SAC(env.observation_space.shape[0], 
             env.action_space, 
@@ -165,49 +171,8 @@ for i_episode in itertools.count(1):
             for i in range(args.updates_per_step):
                 # Update parameters of all the networks
                 try:
-                    if i_episode % update_freq == 0:
+                    if i_episode % update_freq == 0 and warmup_flag:
                         critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
-                    else:
-                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates)
-                    
-                    # if i_episode % update_freq == 0:
-                    #     if args.kl_scale > 0:
-                    #         writer.add_scalar('div/kl_scaled', kl*beta, updates)
-
-                    #         if args.adaptive:
-                    #             writer.add_scalar('div/beta_s', beta, updates)
-                    #         else:
-                    #             writer.add_scalar('div/scale', beta, updates)
-
-                    #         writer.add_scalar('div/kl_original', kl, updates)
-                    #         if idx is not None:
-                    #             writer.add_scalar('div/idx',idx,updates)
-                    #     else:
-                    #         writer.add_scalar('div/kl_scaled', 0, updates)
-                    #         if args.adaptive:
-                    #             writer.add_scalar('div/beta_s', 0, updates)
-                    #         else:
-                    #             writer.add_scalar('div/scale', 0, updates)
-                    #         writer.add_scalar('div/kl_original', 0, updates)
-                    #         if idx is not None:
-                    #             writer.add_scalar('div/idx',idx,updates)
-
-                    #     if type(mu) == torch.Tensor:
-                    #         mu = mu.cpu().detach().numpy()
-                    #         sig = sig.cpu().detach().numpy()
-
-                    #         mean_mu = np.mean(mu,axis=0)
-                    #         mean_sig = np.mean(sig,axis=0)
-
-                    #         # writer.add_scalar('div/steer_mu', mean_mu[0], updates)
-                    #         # writer.add_scalar('div/steer_sig', mean_sig[0], updates)
-                    #         # writer.add_scalar('div/speed_mu', mean_mu[1], updates)
-                    #         # writer.add_scalar('div/speed_sig', mean_sig[1], updates)
-
-                    #     writer.add_scalar('beta/beta1',args.beta1,updates)
-                    #     writer.add_scalar('beta/beta2',args.beta2,updates)
-
-                    if i_episode % update_freq == 0:
                         if args.cup_flag:
                             writer.add_scalar('div/beta1', args.beta1, updates)
                             writer.add_scalar('div/beta2', args.beta2, updates)
@@ -224,7 +189,12 @@ for i_episode in itertools.count(1):
                             writer.add_scalar('div/kl_scaled', 0, updates)
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
-  
+                    else:
+                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates)
+
+                    if updates > args.warmup:
+                        warmup_flag = True
+
 
                     if updates % update_freq == 0:
                         # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
@@ -263,10 +233,11 @@ for i_episode in itertools.count(1):
     if total_numsteps > args.num_steps:
         break
 
-    writer.add_scalar('reward/train', episode_reward, i_episode)
+    if warmup_flag:
+        writer.add_scalar('reward/train', episode_reward, i_episode)
     print("Config: {}|{}|{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,str('adp') if args.adaptive else str('sta'),i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
 
-    if i_episode % 10 == 0 and args.eval is True:
+    if i_episode % 10 == 0 and args.eval is True and warmup_flag:
         avg_reward = 0.
         episodes = 10
         for _  in range(episodes):
