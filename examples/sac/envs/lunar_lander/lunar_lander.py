@@ -481,6 +481,8 @@ class LunarLander(gym.Env, EzPickle):
                 True,
             )
 
+            # print(f"Wind: {wind_mag}, Torque: {torque_mag}")
+
         if self.continuous:
             action = np.clip(action, -1, +1).astype(np.float32)
         else:
@@ -583,6 +585,7 @@ class LunarLander(gym.Env, EzPickle):
             + 10 * state[7]
         )  # And ten points for legs contact, the idea is if you
         # lose contact again after landing, you get negative reward
+        shaping *= 2
         if self.prev_shaping is not None:
             reward = shaping - self.prev_shaping
         self.prev_shaping = shaping
@@ -790,7 +793,8 @@ def demo_heuristic_lander(env, seed=None, render=False):
     steps = 0
     s, info = env.reset(seed=seed)
     while True:
-        # a = heuristic(env, s)
+        a = heuristic(env, s)
+        # a = env.action_space.sample()
         s, r, terminated, truncated, info = step_api_compatibility(env.step(a), True)
         total_reward += r
 
@@ -821,4 +825,4 @@ class LunarLanderContinuous:
 
 
 if __name__ == "__main__":
-    demo_heuristic_lander(LunarLander(render_mode='human'), render=False)
+    demo_heuristic_lander(LunarLander(render_mode='human',enable_wind=False,wind_power=20,turbulence_power=2), render=False)
