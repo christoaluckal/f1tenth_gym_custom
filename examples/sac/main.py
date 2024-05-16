@@ -123,6 +123,15 @@ other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}.pth
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
+train_csv = f"runs/train_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}.csv"
+test_csv = f"runs/test_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}.csv"
+
+with open(train_csv, 'w') as f:
+    f.write("episode,reward\n")
+
+with open(test_csv, 'w') as f:
+    f.write("episode,reward\n")
+
 #Tensorboard
 writer = SummaryWriter(experiment)
 
@@ -181,6 +190,8 @@ for i_episode in itertools.count(1):
                             writer.add_scalar('div/kl_scaled', kl*beta, updates)
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
+
+                            
                         else:
                             writer.add_scalar('div/beta1', 0, updates)
                             writer.add_scalar('div/beta2', 0, updates)
@@ -189,6 +200,7 @@ for i_episode in itertools.count(1):
                             writer.add_scalar('div/kl_scaled', 0, updates)
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
+
                     else:
                         critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates)
 
@@ -235,6 +247,8 @@ for i_episode in itertools.count(1):
 
     if warmup_flag:
         writer.add_scalar('reward/train', episode_reward, i_episode)
+        with open(train_csv, 'a') as f:
+            f.write(f"{i_episode},{episode_reward}\n")
     print("Config: {}|{}|{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,str('adp') if args.adaptive else str('sta'),i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
 
     if i_episode % 10 == 0 and args.eval is True and warmup_flag:
@@ -259,6 +273,8 @@ for i_episode in itertools.count(1):
 
 
         writer.add_scalar('avg_reward/test', avg_reward, i_episode)
+        with open(test_csv, 'a') as f:
+            f.write(f"{i_episode},{avg_reward}\n")
 
         print("----------------------------------------")
         print("Config: {}|{}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,args.adaptive,episodes, round(avg_reward, 2)))
