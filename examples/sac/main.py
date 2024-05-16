@@ -126,6 +126,9 @@ experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{arg
 train_csv = f"runs/train_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}.csv"
 test_csv = f"runs/test_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}.csv"
 
+if not os.path.exists('runs'):
+    os.makedirs('runs')
+
 with open(train_csv, 'w') as f:
     f.write("episode,reward\n")
 
