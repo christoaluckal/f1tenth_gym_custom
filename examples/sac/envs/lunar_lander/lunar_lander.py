@@ -197,6 +197,9 @@ class LunarLander(gym.Env, EzPickle):
         enable_wind: bool = False,
         wind_power: float = 15.0,
         turbulence_power: float = 1.5,
+        shape_scale = 1,
+        m_scale = 0.3,
+        s_scale = 0.03,
     ):
         EzPickle.__init__(
             self,
@@ -248,6 +251,9 @@ class LunarLander(gym.Env, EzPickle):
         self.continuous = continuous
 
         self.steps = 0
+        self.shape_scale = shape_scale
+        self.m_scale = m_scale
+        self.s_scale = s_scale
 
         low = np.array(
             [
@@ -591,9 +597,9 @@ class LunarLander(gym.Env, EzPickle):
         self.prev_shaping = shaping
 
         reward -= (
-            m_power * 0.30
+            m_power * self.m_scale
         )  # less fuel spent is better, about -30 for heuristic landing
-        reward -= s_power * 0.03
+        reward -= s_power * self.s_scale
 
         self.steps += 1
 

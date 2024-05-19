@@ -99,7 +99,14 @@ def register_lunarlander(config=1):
     # elif config == 3:
     #     turbulence = 8
 
-    env = LunarLander(continuous=True,enable_wind=True,wind_power=windpower)
+    env = LunarLander(
+        continuous=True,
+        enable_wind=True,
+        wind_power=windpower,
+        shape_scale=1.5,
+        m_scale=0.5,
+        s_scale=0.015
+        )
     print(f"Wind Power: {windpower}")
 
     if os.path.exists('envs/lunar_lander/eval_batch.npy'):
