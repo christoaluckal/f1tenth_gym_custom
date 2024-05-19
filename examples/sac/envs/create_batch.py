@@ -17,7 +17,10 @@ while len(eval_batch) < 1000:
                 eval_batch.append(t) 
         state = next_state
 
-for e in eval_batch:
+for e in eval_batch[0:10]:
     print(e)
 eval_batch = np.array(eval_batch)
+np.random.shuffle(eval_batch)
+for e in eval_batch[0:10]:
+    print(e)
 np.save('lunar_lander/eval_batch.npy',eval_batch)
