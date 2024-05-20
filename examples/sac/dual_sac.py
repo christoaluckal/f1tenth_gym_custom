@@ -16,7 +16,7 @@ beta1s = [random.randint(0, 50) for _ in range(10)]
 beta2s = [random.randint(1, 5)*(10**(-random.randint(0, 3))) for _ in range(10)]
 beta1s.insert(0, 0)
 beta2s.insert(0, 0)
-ep = 300000
+ep = 500000
 total_configs = 3
 
 kl_scales = zip(beta1s, beta2s)
