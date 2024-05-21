@@ -158,11 +158,14 @@ class SAC(object):
             a.append(p[i].item())
             b.append(q[i].item())
 
-        a = np.array(a)
-        b = np.array(b)
+        # a = np.array(a)
+        # b = np.array(b)
+        
+        # probs_a = np.exp(a) / np.sum(np.exp(a))
+        # probs_b = np.exp(b) / np.sum(np.exp(b))
 
-        probs_a = np.exp(a) / np.sum(np.exp(a))
-        probs_b = np.exp(b) / np.sum(np.exp(b))
+        probs_a = np.exp(a)
+        probs_b = np.exp(b)
 
         kl = np.sum(probs_a * np.log(probs_a / probs_b))
         kl = np.mean(kl)
@@ -222,6 +225,7 @@ class SAC(object):
 
         curr_actions_prob = self.policy.sample(states)[1]
         best_actions_prob = best_policy.sample(states)[1]
+
 
         KL = self._KL(curr_actions_prob,best_actions_prob)
 

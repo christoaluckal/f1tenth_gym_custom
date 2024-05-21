@@ -126,7 +126,7 @@ elif "lunar" in args.env_name:
 
 own_policy_name = f"policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}.pth"
 
-other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}.pth" for i in range(1,args.total_configs+1) if i!=args.own_policy_idx]
+other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}.pth" for i in range(1,args.total_configs+1)]
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
