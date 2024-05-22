@@ -152,23 +152,19 @@ class SAC(object):
 
         for i in range(len(p)):
             if p[i] == 0:
-                p[i] = 1e-8
+                p[i] = 1e-4
             if q[i] == 0:
-                q[i] = 1e-8
+                q[i] = 1e-4
             a.append(p[i].item())
             b.append(q[i].item())
 
-        # a = np.array(a)
-        # b = np.array(b)
+        a = np.array(a)
+        b = np.array(b)
         
-        # probs_a = np.exp(a) / np.sum(np.exp(a))
-        # probs_b = np.exp(b) / np.sum(np.exp(b))
-
-        probs_a = np.exp(a)
-        probs_b = np.exp(b)
+        probs_a = np.exp(a) / np.sum(np.exp(a))
+        probs_b = np.exp(b) / np.sum(np.exp(b))
 
         kl = np.sum(probs_a * np.log(probs_a / probs_b))
-        kl = np.mean(kl)
 
         return kl
 
@@ -194,6 +190,8 @@ class SAC(object):
         advantages = []
         v_advantages = []
         values = []
+
+        self.critic.eval()
         
         for p in other_policies:
             temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
@@ -216,6 +214,8 @@ class SAC(object):
                     v_advantages.append(EA.cpu().numpy())
                     values.append(qV_mean.cpu().numpy())
 
+        self.critic.train()
+
         max_idx = np.argmax(advantages)
         
         best_policy_idx = other_policies[max_idx]
@@ -227,7 +227,10 @@ class SAC(object):
         best_actions_prob = best_policy.sample(states)[1]
 
 
-        KL = self._KL(curr_actions_prob,best_actions_prob)
+        KL = self._KL(best_actions_prob,curr_actions_prob)
+
+        del temp_policy
+        del best_policy
 
         if self.adaptive:
             term1 = v_advantages[max_idx]

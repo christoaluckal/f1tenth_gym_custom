@@ -47,8 +47,9 @@ kl_scales = zip(beta1s, beta2s)
 
 # kl_scales = [0,1,5,10,0,30,50,0,100]
 
-for _ in range(1):
-    kl_scales = [0,1,5,10]
+for _ in range(2):
+    # kl_scales = [0,1,5,10,50,100,500,1000]
+    kl_scales = [1,5,0,10,50,0,100,500]
 
     for idx,kl_scale in enumerate(kl_scales):
         exp_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{kl_scale} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale} --total_configs {total_configs}"

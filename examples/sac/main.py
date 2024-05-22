@@ -53,7 +53,8 @@ parser.add_argument('--adaptive', default=False, action="store_true")
 parser.add_argument('--beta1',type=float,default=0)
 parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
-parser.add_argument('--warmup',type=int,default=15000)
+parser.add_argument('--warmup',type=int,default=5000)
+parser.add_argument('--freq',type=int,default=25)
 args = parser.parse_args()
 
 np.random.seed(args.seed)
@@ -170,7 +171,7 @@ memory = ReplayMemory(args.replay_size, args.seed)
 # Training Loop
 total_numsteps = 0
 updates = 0
-update_freq = 25
+update_freq = args.freq
 
 for i_episode in itertools.count(1):
     episode_reward = 0
