@@ -217,6 +217,9 @@ class SAC(object):
         self.critic.train()
 
         max_idx = np.argmax(advantages)
+
+        if self.kl_scale == 0:
+            return 0, self.kl_scale, self.own_idx
         
         best_policy_idx = other_policies[max_idx]
         best_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
@@ -242,7 +245,7 @@ class SAC(object):
                 beta_s = self.beta1*term2
                 return KL, beta_s, 2
         else:
-            return KL, self.kl_scale, 0
+            return KL, self.kl_scale, max_idx+1
 
 
         
