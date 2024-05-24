@@ -182,7 +182,7 @@ class SAC(object):
         if eval_batch is None:
             raise ValueError("eval_batch cannot be None")
         
-        import numpy as np
+        
 
         states = np.copy(eval_batch)
         states = torch.FloatTensor(states).to(self.device)
@@ -190,11 +190,19 @@ class SAC(object):
         advantages = []
         v_advantages = []
         values = []
+        kl_scores = []
 
         self.critic.eval()
+
+        curr_actions_prob = self.policy.sample(states)[1]
+
+        if self.kl_scale == 0:
+            return 0, self.kl_scale, self.own_idx
+        
+        temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
         
         for p in other_policies:
-            temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
+            
             policy_dict = torch.load(p)
             temp_policy.load_state_dict(policy_dict)
             temp_policy.eval()
@@ -206,6 +214,7 @@ class SAC(object):
                 EA = min_qf_pi - self.alpha * log_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
+                kl_scores.append(self._KL(curr_actions_prob,log_pi))
                 if self.adaptive:
                     qV = self.value_network(states)
                     EA = min_qf_pi - self.alpha * log_pi - qV
@@ -218,22 +227,10 @@ class SAC(object):
 
         max_idx = np.argmax(advantages)
 
-        if self.kl_scale == 0:
-            return 0, self.kl_scale, self.own_idx
-        
-        best_policy_idx = other_policies[max_idx]
-        best_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
-        policy_dict = torch.load(best_policy_idx)
-        best_policy.load_state_dict(policy_dict)
-
-        curr_actions_prob = self.policy.sample(states)[1]
-        best_actions_prob = best_policy.sample(states)[1]
-
-
-        KL = self._KL(best_actions_prob,curr_actions_prob)
+        KL = kl_scores[max_idx]
 
         del temp_policy
-        del best_policy
+
 
         if self.adaptive:
             term1 = v_advantages[max_idx]

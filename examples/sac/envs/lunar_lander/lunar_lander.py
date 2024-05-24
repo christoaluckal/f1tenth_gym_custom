@@ -600,6 +600,7 @@ class LunarLander(gym.Env, EzPickle):
             m_power * self.m_scale
         )  # less fuel spent is better, about -30 for heuristic landing
         reward -= s_power * self.s_scale
+        reward -= 0.5
 
         self.steps += 1
 

@@ -294,7 +294,7 @@ for i_episode in itertools.count(1):
         print("Config: {}|{}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,args.adaptive,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-    if i_episode % 10 == 0 and args.cup_flag:
+    if i_episode % args.freq//2 == 0 and args.cup_flag:
         policy = agent.policy.state_dict()
         torch.save(policy, own_policy_name)
 env.close()
