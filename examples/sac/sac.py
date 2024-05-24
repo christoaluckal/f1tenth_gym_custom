@@ -5,6 +5,7 @@ from torch.optim import Adam
 from utils import soft_update, hard_update
 from model import GaussianPolicy, QNetwork, DeterministicPolicy,ValueNetwork
 import numpy as np
+from pprint import pprint
 from torch.nn import KLDivLoss
 
 kl_div = KLDivLoss(reduction='batchmean')
@@ -18,6 +19,7 @@ class SAC(object):
                  eval_batch=None, 
                  CUP_flag=False, 
                  other_policies=None,
+                 other_critics=None,
                  own_idx=1,
                  beta1=0,
                  beta2=0,
@@ -63,6 +65,8 @@ class SAC(object):
         self.kl_scale = kl_scale
 
         self.other_policy_list = other_policies
+
+        self.other_critic_list = other_critics
 
         self.own_idx = own_idx
 
@@ -179,6 +183,8 @@ class SAC(object):
                    ):
         if other_policies is None:
             raise ValueError("other_policies cannot be None")
+        if self.other_critic_list is None:
+            raise ValueError("other_critics cannot be None")
         if eval_batch is None:
             raise ValueError("eval_batch cannot be None")
         
@@ -200,18 +206,42 @@ class SAC(object):
             return 0, self.kl_scale, self.own_idx
         
         temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
-        
-        for p in other_policies:
+        temp_critic = QNetwork(num_inputs, self.action_space.shape[0], hidden_size).to(self.device)
+        # for p in other_policies:
             
+        #     policy_dict = torch.load(p)
+        #     temp_policy.load_state_dict(policy_dict)
+        #     temp_policy.eval()
+        #     pi,log_pi, _ = temp_policy.sample(states)
+        #     with torch.no_grad():
+        #         qf1_pi, qf2_pi = self.critic_target(states, pi)
+                
+        #         min_qf_pi = torch.max(qf1_pi, qf2_pi)
+        #         EA = min_qf_pi - self.alpha * log_pi
+        #         EA = EA.mean()
+        #         advantages.append(EA.cpu().numpy())
+        #         kl_scores.append(self._KL(curr_actions_prob,log_pi))
+        #         if self.adaptive:
+        #             qV = self.value_network(states)
+        #             EA = min_qf_pi - self.alpha * log_pi - qV
+        #             EA = EA.mean()
+        #             qV_mean = qV.mean()
+        #             v_advantages.append(EA.cpu().numpy())
+        #             values.append(qV_mean.cpu().numpy())
+
+        for idx,p in enumerate(other_policies):
             policy_dict = torch.load(p)
+            critic_dict = torch.load(self.other_critic_list[idx])
             temp_policy.load_state_dict(policy_dict)
+            temp_critic.load_state_dict(critic_dict)
             temp_policy.eval()
+            temp_critic.eval()
             pi,log_pi, _ = temp_policy.sample(states)
             with torch.no_grad():
-                qf1_pi, qf2_pi = self.critic(states, pi)
+                qf1_pi, qf2_pi = temp_critic(states, pi)
                 
-                min_qf_pi = torch.min(qf1_pi, qf2_pi)
-                EA = min_qf_pi - self.alpha * log_pi
+                min_qf_pi = torch.max(qf1_pi, qf2_pi)
+                EA = min_qf_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
                 kl_scores.append(self._KL(curr_actions_prob,log_pi))
@@ -222,11 +252,18 @@ class SAC(object):
                     qV_mean = qV.mean()
                     v_advantages.append(EA.cpu().numpy())
                     values.append(qV_mean.cpu().numpy())
-
+            
         self.critic.train()
 
         max_idx = np.argmax(advantages)
 
+        if self.own_idx == 2:
+            pprint({
+                "Advantages": advantages,
+                "KL Scores": kl_scores,
+                "Max Index": max_idx
+            
+            },indent=4)
         KL = kl_scores[max_idx]
 
         del temp_policy

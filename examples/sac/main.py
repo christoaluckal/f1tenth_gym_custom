@@ -53,9 +53,16 @@ parser.add_argument('--adaptive', default=False, action="store_true")
 parser.add_argument('--beta1',type=float,default=0)
 parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
-parser.add_argument('--warmup',type=int,default=1000)
+parser.add_argument('--warmup',type=int,default=0)
 parser.add_argument('--freq',type=int,default=5)
 args = parser.parse_args()
+
+# args.warmup = int(args.num_steps*0.2)
+
+plot_warmup_count = int(args.num_steps*0.1)
+regularization_warmup_count = int(args.num_steps*0.2)
+# plot_warmup_count = 0
+# regularization_warmup_count = 0
 
 np.random.seed(args.seed)
 
@@ -128,6 +135,7 @@ elif "lunar" in args.env_name:
 own_policy_name = f"policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}.pth"
 
 other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}.pth" for i in range(1,args.total_configs+1)]
+other_critics = [f"critic_target_{i}.pth" for i in range(1,args.total_configs+1)]
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
@@ -149,10 +157,8 @@ with open(test_csv, 'w') as f:
 #Tensorboard
 writer = SummaryWriter(experiment)
 
-if args.warmup > 0:
-    warmup_flag = False
-else:
-    warmup_flag = True
+plot_warmup_flag = False
+regularization_warmup_flag = False
 
 # Agent
 agent = SAC(env.observation_space.shape[0], 
@@ -160,6 +166,7 @@ agent = SAC(env.observation_space.shape[0],
             args,
             eval_batch=eval_batch,         
             other_policies=other_policies,
+            other_critics=other_critics,
             own_idx=args.own_policy_idx,
             kl_scale=args.kl_scale,
             beta1=args.beta1,
@@ -194,7 +201,7 @@ for i_episode in itertools.count(1):
             for i in range(args.updates_per_step):
                 # Update parameters of all the networks
                 try:
-                    if i_episode % update_freq == 0 and warmup_flag:
+                    if i_episode % update_freq == 0 and regularization_warmup_flag:
                         critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
                         if args.cup_flag:
                             writer.add_scalar('div/beta1', args.beta1, updates)
@@ -218,8 +225,14 @@ for i_episode in itertools.count(1):
                     else:
                         critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates)
 
-                    if updates > args.warmup:
-                        warmup_flag = True
+                    # if updates > args.warmup:
+                    #     warmup_flag = True
+
+                    if updates > plot_warmup_count:
+                        plot_warmup_flag = True
+
+                    if updates > regularization_warmup_count:
+                        regularization_warmup_flag = True
 
 
                     if updates % update_freq == 0:
@@ -259,13 +272,13 @@ for i_episode in itertools.count(1):
     if total_numsteps > args.num_steps:
         break
 
-    if warmup_flag:
+    if plot_warmup_flag:
         writer.add_scalar('reward/train', episode_reward, i_episode)
         with open(train_csv, 'a') as f:
             f.write(f"{i_episode},{episode_reward}\n")
-    print("Config: {}|{}|{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,str('adp') if args.adaptive else str('sta'),i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+    print("Config: {}|{}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,str('adp') if args.adaptive else str('sta'),plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
 
-    if i_episode % 10 == 0 and args.eval is True and warmup_flag:
+    if i_episode % 10 == 0 and args.eval is True and plot_warmup_flag:
         avg_reward = 0.
         episodes = 10
         for _  in range(episodes):
@@ -297,5 +310,9 @@ for i_episode in itertools.count(1):
     if i_episode % args.freq//2 == 0 and args.cup_flag:
         policy = agent.policy.state_dict()
         torch.save(policy, own_policy_name)
+
+        critic_target = agent.critic_target.state_dict()
+        torch.save(critic_target, f"critic_target_{args.own_policy_idx}.pth")
+
 env.close()
 

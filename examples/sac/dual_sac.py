@@ -16,7 +16,7 @@ beta1s = [random.randint(0, 50) for _ in range(10)]
 beta2s = [random.randint(1, 5)*(10**(-random.randint(0, 3))) for _ in range(10)]
 beta1s.insert(0, 0)
 beta2s.insert(0, 0)
-ep = 500000
+ep = 250000
 total_configs = 3
 
 kl_scales = zip(beta1s, beta2s)
@@ -49,10 +49,10 @@ kl_scales = zip(beta1s, beta2s)
 
 for _ in range(5):
     # kl_scales = [0,1,5,10,50,100,500,1000]
-    kl_scales = [0,1,5,10,30]
+    kl_scales = [1,5,10,30]
 
     for idx,kl_scale in enumerate(kl_scales):
-        exp_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{int(kl_scale*10)} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale} --total_configs {total_configs}"
+        exp_1 = f"python3 main.py --own_policy_idx 1 --config 0 --env-name {exp_type}_1_sta_{idx}_{int(kl_scale*10)} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale} --total_configs {total_configs}"
         exp_2 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{int(kl_scale*10)} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale} --total_configs {total_configs}"
         exp_3 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{int(kl_scale*10)} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale} --total_configs {total_configs}"
 
