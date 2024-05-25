@@ -59,8 +59,8 @@ args = parser.parse_args()
 
 # args.warmup = int(args.num_steps*0.2)
 
-plot_warmup_count = int(args.num_steps*0.1)
-regularization_warmup_count = int(args.num_steps*0.2)
+plot_warmup_count = int(args.num_steps*0.05)
+regularization_warmup_count = int(args.num_steps*0.07)
 # plot_warmup_count = 0
 # regularization_warmup_count = 0
 

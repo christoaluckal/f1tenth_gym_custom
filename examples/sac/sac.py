@@ -180,6 +180,7 @@ class SAC(object):
                     num_inputs=None,
                     hidden_size=None,
                     action_space=None,
+                    memory=None,
                    ):
         if other_policies is None:
             raise ValueError("other_policies cannot be None")
@@ -190,7 +191,8 @@ class SAC(object):
         
         
 
-        states = np.copy(eval_batch)
+        # states = np.copy(eval_batch)
+        states,_,_,_,_ = memory.sample(batch_size=128)
         states = torch.FloatTensor(states).to(self.device)
 
         advantages = []
@@ -257,13 +259,15 @@ class SAC(object):
 
         max_idx = np.argmax(advantages)
 
-        if self.own_idx == 2:
-            pprint({
-                "Advantages": advantages,
-                "KL Scores": kl_scores,
-                "Max Index": max_idx
-            
-            },indent=4)
+        # if self.own_idx == 3:
+        #     if advantages[1] > advantages[2]:
+        #         pprint({
+        #             "Advantages": advantages,
+        #             "KL Scores": kl_scores,
+        #             "Max Index": max_idx
+                
+        #         },indent=4)
+
         KL = kl_scores[max_idx]
 
         del temp_policy
@@ -363,7 +367,7 @@ class SAC(object):
         if self.CUP_flag:
             if guided_itr:
                 if self.adaptive:
-                    KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
+                    KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch,memory=memory)
 
                     policy_loss += KL*beta_s
 
@@ -371,7 +375,7 @@ class SAC(object):
                     curr_std = self.policy.last_std
 
                 else:
-                    KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
+                    KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch,memory=memory)
 
                     beta_s = self.kl_scale
 
