@@ -175,3 +175,4 @@ examples/sac/runs
 *.yaml
 
 *.zip
+*.pth

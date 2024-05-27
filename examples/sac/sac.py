@@ -108,7 +108,8 @@ class SAC(object):
             "Beta1": beta1,
             "Beta2": beta2,
             "KL Scale": self.kl_scale,
-            "Other Policies": other_policies
+            "Other Policies": other_policies,
+            "Other Critics": other_critics
         }
 
         from pprint import pprint
@@ -132,11 +133,11 @@ class SAC(object):
             #     torch.save(policy_dict, f"policy_{own_idx}.pth")
             # else:
             #     print(f"policy_{own_idx}.pth already exists")
-            if os.path.exists(f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}.pth"):
-                os.remove(f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}.pth")
+            if os.path.exists(f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth"):
+                os.remove(f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth")
 
             policy_dict = self.policy.state_dict()
-            torch.save(policy_dict, f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}.pth")
+            torch.save(policy_dict, f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth")
 
                 
 
@@ -299,7 +300,7 @@ class SAC(object):
             _, _, action = self.policy.sample(state)
         return action.detach().cpu().numpy()[0]
 
-    def update_parameters(self, memory, batch_size, updates, guided_itr=False):
+    def update_parameters(self, memory, batch_size, updates, guided_itr=False,epsilon=None):
         # Sample a batch from memory
         state_batch, action_batch, reward_batch, next_state_batch, mask_batch = memory.sample(batch_size=batch_size)
 
@@ -352,6 +353,7 @@ class SAC(object):
         curr_mean = [0,0]
         curr_std = [0,0]
         beta_s = 0
+        eps = 1
         idx = None
             
         # if self.CUP_flag and guided_itr and self.kl_scale:
@@ -379,7 +381,11 @@ class SAC(object):
 
                     beta_s = self.kl_scale
 
-                    policy_loss += KL*beta_s
+                    if epsilon is not None and epsilon < 1:
+                        eps = epsilon
+                        policy_loss += KL*beta_s*eps
+                    else:
+                        policy_loss += KL*beta_s*eps
 
                     curr_mean = self.policy.last_mean
                     curr_std = self.policy.last_std

@@ -60,9 +60,11 @@ args = parser.parse_args()
 # args.warmup = int(args.num_steps*0.2)
 
 plot_warmup_count = int(args.num_steps*0.05)
-regularization_warmup_count = int(args.num_steps*0.07)
+regularization_warmup_count = int(args.num_steps*0.1)
 # plot_warmup_count = 0
 # regularization_warmup_count = 0
+epsilon = 1
+decay = (0.1)**(1/900)
 
 np.random.seed(args.seed)
 
@@ -132,10 +134,10 @@ if "f110" in args.env_name:
 elif "lunar" in args.env_name:
     env,eval_batch = register_lunarlander(args.config)
 
-own_policy_name = f"policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}.pth"
+own_policy_name = f"policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}_{args.kl_scale}.pth"
 
-other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}.pth" for i in range(1,args.total_configs+1)]
-other_critics = [f"critic_target_{i}.pth" for i in range(1,args.total_configs+1)]
+other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}_{args.kl_scale}.pth" for i in range(1,args.total_configs+1)]
+other_critics = [f"critic_target_{i}_{args.kl_scale}.pth" for i in range(1,args.total_configs+1)]
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
@@ -188,7 +190,7 @@ for i_episode in itertools.count(1):
     episode_steps = 0
     done = False
     state = env.reset()
-
+    epsilon *= decay
     while not done:
         # env.render()
         if args.start_steps > total_numsteps:
@@ -202,13 +204,14 @@ for i_episode in itertools.count(1):
                 # Update parameters of all the networks
                 try:
                     if i_episode % update_freq == 0 and regularization_warmup_flag:
-                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True)
+                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True,epsilon=epsilon)
                         if args.cup_flag:
-                            writer.add_scalar('div/beta1', args.beta1, updates)
-                            writer.add_scalar('div/beta2', args.beta2, updates)
+                            # writer.add_scalar('div/beta1', args.beta1, updates)
+                            # writer.add_scalar('div/beta2', args.beta2, updates)
                             writer.add_scalar('div/kl_scale', args.kl_scale, updates)
                             writer.add_scalar('div/kl_original', kl, updates)
-                            writer.add_scalar('div/kl_scaled', kl*beta, updates)
+                            writer.add_scalar('div/epsilon', epsilon, updates)
+                            writer.add_scalar('div/kl_scaled', kl*beta*epsilon, updates)
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
 
@@ -248,6 +251,8 @@ for i_episode in itertools.count(1):
                 except Exception as e:
                     print(e)
                     continue
+
+                
 
         
         next_state, reward, done, _, _ = env.step(action) # Step
@@ -312,7 +317,7 @@ for i_episode in itertools.count(1):
         torch.save(policy, own_policy_name)
 
         critic_target = agent.critic_target.state_dict()
-        torch.save(critic_target, f"critic_target_{args.own_policy_idx}.pth")
+        torch.save(critic_target, f"critic_target_{args.own_policy_idx}_{args.kl_scale}.pth")
 
 env.close()
 
