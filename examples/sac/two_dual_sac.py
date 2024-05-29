@@ -27,7 +27,7 @@ for _ in range(5):
     # kl_scales = [0,1,5,10,50,100,500,1000]
     # kl_scales = [[0,5],[10,20],[50,100],[100,200],[500,1000]]
     # kl_scales = [[0,5,10],[20,50,100]]
-    kl_scales = [[0,10],[20,50],[70,100]]
+    kl_scales = [[0,0],[20,50],[70,100]]
 
     for idx,kl_scale in enumerate(kl_scales):
         # exp_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{int(kl_scale*10)} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale} --total_configs {total_configs}"
