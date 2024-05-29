@@ -190,7 +190,9 @@ for i_episode in itertools.count(1):
     episode_steps = 0
     done = False
     state = env.reset()
-    epsilon *= decay
+    if regularization_warmup_flag:
+        epsilon *= decay
+        
     while not done:
         # env.render()
         if args.start_steps > total_numsteps:
