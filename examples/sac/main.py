@@ -55,6 +55,7 @@ parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
 parser.add_argument('--warmup',type=int,default=0)
 parser.add_argument('--freq',type=int,default=5)
+parser.add_argument('--max_episodes',type=int,default=1800)
 args = parser.parse_args()
 
 # args.warmup = int(args.num_steps*0.2)
@@ -64,7 +65,7 @@ regularization_warmup_count = int(args.num_steps*0.1)
 # plot_warmup_count = 0
 # regularization_warmup_count = 0
 epsilon = 1
-decay = (0.1)**(1/900)
+decay = (0.1)**(1/1100)
 
 np.random.seed(args.seed)
 
@@ -276,7 +277,9 @@ for i_episode in itertools.count(1):
 
         state = next_state
 
-    if total_numsteps > args.num_steps:
+    # if total_numsteps > args.num_steps:
+    #     break
+    if i_episode > args.max_episodes:
         break
 
     if plot_warmup_flag:
