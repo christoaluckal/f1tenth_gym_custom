@@ -60,12 +60,12 @@ args = parser.parse_args()
 
 # args.warmup = int(args.num_steps*0.2)
 
-# plot_warmup_count = int(args.num_steps*0.05)
-# regularization_warmup_count = int(args.num_steps*0.1)
-plot_warmup_count = 0
-regularization_warmup_count = 0
+plot_warmup_count = int(args.num_steps*0.05)
+regularization_warmup_count = int(args.num_steps*0.1)
+# plot_warmup_count = 0
+# regularization_warmup_count = 0
 epsilon = 1
-decay = (0.1)**(1/5000)
+decay = (0.1)**(1/1100)
 
 np.random.seed(args.seed)
 
@@ -186,9 +186,6 @@ total_numsteps = 0
 updates = 0
 update_freq = args.freq
 
-eval_rewards = []
-
-
 for i_episode in itertools.count(1):
     episode_reward = 0
     episode_steps = 0
@@ -240,8 +237,8 @@ for i_episode in itertools.count(1):
                     if updates > plot_warmup_count:
                         plot_warmup_flag = True
 
-                    # if updates > regularization_warmup_count:
-                    #     regularization_warmup_flag = True
+                    if updates > regularization_warmup_count:
+                        regularization_warmup_flag = True
 
 
                     if updates % update_freq == 0:
@@ -255,7 +252,7 @@ for i_episode in itertools.count(1):
                     updates += 1
 
                 except Exception as e:
-                    print("Train Exception:",e)
+                    print(e)
                     continue
 
                 
@@ -289,10 +286,8 @@ for i_episode in itertools.count(1):
         writer.add_scalar('reward/train', episode_reward, i_episode)
         with open(train_csv, 'a') as f:
             f.write(f"{i_episode},{episode_reward}\n")
-    #print("Config: {}|{}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,str('adp') if args.adaptive else str('sta'),plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+    print("Config: {}|{}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,str('adp') if args.adaptive else str('sta'),plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
 
-    print("Config: {}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.kl_scale,plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
-    
     if i_episode % 10 == 0 and args.eval is True and plot_warmup_flag:
         avg_reward = 0.
         episodes = 10
@@ -312,40 +307,22 @@ for i_episode in itertools.count(1):
                 state = next_state
             avg_reward += episode_reward
         avg_reward /= episodes
-        
+
 
         writer.add_scalar('avg_reward/test', avg_reward, i_episode)
+        with open(test_csv, 'a') as f:
+            f.write(f"{i_episode},{avg_reward}\n")
 
         print("----------------------------------------")
-        # print("Config: {}|{}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,args.adaptive,episodes, round(avg_reward, 2)))
-        print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,episodes, round(avg_reward, 2)))
+        print("Config: {}|{}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,args.adaptive,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 5:
-            # print("----------------------------------------")
-            # print(f"Config: {args.config}| KL: {args.kl_scale} warmup completed")
-            # print("----------------------------------------")
-            
-            last_10_avg = np.mean(eval_rewards[-5:])
+    if i_episode % args.freq//2 == 0 and args.cup_flag:
+        policy = agent.policy.state_dict()
+        torch.save(policy, own_policy_name)
 
-            if args.cup_flag and avg_reward > last_10_avg:
-                regularization_warmup_flag = True
-                policy = agent.policy.state_dict()
-                torch.save(policy, own_policy_name)
-
-                critic_target = agent.critic_target.state_dict()
-                torch.save(critic_target, f"critic_target_{args.own_policy_idx}_{args.kl_scale}.pth")
-
-        eval_rewards.append(avg_reward)
-
-    # if i_episode % args.freq//2 == 0 and args.cup_flag:
-    #     policy = agent.policy.state_dict()
-    #     torch.save(policy, own_policy_name)
-
-    #     critic_target = agent.critic_target.state_dict()
-    #     torch.save(critic_target, f"critic_target_{args.own_policy_idx}_{args.kl_scale}.pth")
-
- 
+        critic_target = agent.critic_target.state_dict()
+        torch.save(critic_target, f"critic_target_{args.own_policy_idx}_{args.kl_scale}.pth")
 
 env.close()
 
