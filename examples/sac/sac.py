@@ -94,10 +94,10 @@ class SAC(object):
                 self.beta1 = 0
                 self.beta2 = 0
                 self.kl_scale = kl_scale
-        else:
-            self.beta1 = 0
-            self.beta2 = 0
-            self.kl_scale = 1
+        # else:
+        #     self.beta1 = 0
+        #     self.beta2 = 0
+        #     self.kl_scale = 1
 
 
         info_dict = {
