@@ -46,7 +46,6 @@ parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
 parser.add_argument('--cuda', action="store_true",
                     help='run on CUDA (default: False)')
 parser.add_argument('--own_policy_idx',type=int,default=1)
-parser.add_argument('--best_idx',type=int,default=2)
 parser.add_argument('--config', type=int, default=1)
 parser.add_argument('--cup_flag', type=bool, default=False)
 parser.add_argument('--kl_scale', type=float, default=0)
@@ -66,8 +65,7 @@ args = parser.parse_args()
 plot_warmup_count = 0
 regularization_warmup_count = 0
 epsilon = 1
-decay = (0.1)**(1/900)
-# decay = 1
+decay = (0.1)**(1/5000)
 
 np.random.seed(args.seed)
 
@@ -139,8 +137,8 @@ elif "lunar" in args.env_name:
 
 own_policy_name = f"policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}_{args.kl_scale}.pth"
 
-other_policies = [own_policy_name, f"policy_sta_{args.best_idx}_0.pth"]
-other_critics = [f"critic_target_{args.own_policy_idx}_{args.kl_scale}.pth", f"critic_target_{args.best_idx}_0.pth"]
+other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}_{args.kl_scale}.pth" for i in range(1,args.total_configs+1)]
+other_critics = [f"critic_target_{i}_{args.kl_scale}.pth" for i in range(1,args.total_configs+1)]
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 

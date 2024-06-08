@@ -210,27 +210,7 @@ class SAC(object):
         
         temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
         temp_critic = QNetwork(num_inputs, self.action_space.shape[0], hidden_size).to(self.device)
-        # for p in other_policies:
-            
-        #     policy_dict = torch.load(p)
-        #     temp_policy.load_state_dict(policy_dict)
-        #     temp_policy.eval()
-        #     pi,log_pi, _ = temp_policy.sample(states)
-        #     with torch.no_grad():
-        #         qf1_pi, qf2_pi = self.critic_target(states, pi)
-                
-        #         min_qf_pi = torch.max(qf1_pi, qf2_pi)
-        #         EA = min_qf_pi - self.alpha * log_pi
-        #         EA = EA.mean()
-        #         advantages.append(EA.cpu().numpy())
-        #         kl_scores.append(self._KL(curr_actions_prob,log_pi))
-        #         if self.adaptive:
-        #             qV = self.value_network(states)
-        #             EA = min_qf_pi - self.alpha * log_pi - qV
-        #             EA = EA.mean()
-        #             qV_mean = qV.mean()
-        #             v_advantages.append(EA.cpu().numpy())
-        #             values.append(qV_mean.cpu().numpy())
+
 
         for idx,p in enumerate(other_policies):
             policy_dict = torch.load(p)
@@ -244,7 +224,7 @@ class SAC(object):
                 qf1_pi, qf2_pi = temp_critic(states, pi)
                 
                 min_qf_pi = torch.max(qf1_pi, qf2_pi)
-                EA = min_qf_pi
+                EA = min_qf_pi - self.alpha*log_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
                 kl_scores.append(self._KL(curr_actions_prob,log_pi))
