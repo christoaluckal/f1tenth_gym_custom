@@ -127,7 +127,10 @@ def register_lunarlander(config=1):
 
     return env, eval_batch
 
-
+if args.kl_scale < 1e-4:
+    kl_scale_arg = 0
+else:
+    kl_scale_arg = args.kl_scale
 
 if "f110" in args.env_name:
     env,eval_batch = register_f110(args.config)
@@ -135,10 +138,10 @@ if "f110" in args.env_name:
 elif "lunar" in args.env_name:
     env,eval_batch = register_lunarlander(args.config)
 
-own_policy_name = f"policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}_{args.kl_scale}.pth"
+own_policy_name = f"policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}_{kl_scale_arg}.pth"
 
-other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}_{args.kl_scale}.pth" for i in range(1,args.total_configs+1)]
-other_critics = [f"critic_target_{i}_{args.kl_scale}.pth" for i in range(1,args.total_configs+1)]
+other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}_{kl_scale_arg}.pth" for i in range(1,args.total_configs+1)]
+other_critics = [f"critic_target_{i}_{kl_scale_arg}.pth" for i in range(1,args.total_configs+1)]
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
@@ -171,7 +174,7 @@ agent = SAC(env.observation_space.shape[0],
             other_policies=other_policies,
             other_critics=other_critics,
             own_idx=args.own_policy_idx,
-            kl_scale=args.kl_scale,
+            kl_scale=kl_scale_arg,
             beta1=args.beta1,
             beta2=args.beta2,
             CUP_flag=args.cup_flag,
@@ -214,7 +217,7 @@ for i_episode in itertools.count(1):
                         if args.cup_flag:
                             # writer.add_scalar('div/beta1', args.beta1, updates)
                             # writer.add_scalar('div/beta2', args.beta2, updates)
-                            writer.add_scalar('div/kl_scale', args.kl_scale, updates)
+                            writer.add_scalar('div/kl_scale', kl_scale_arg, updates)
                             writer.add_scalar('div/kl_original', kl, updates)
                             writer.add_scalar('div/epsilon', epsilon, updates)
                             writer.add_scalar('div/kl_scaled', kl*beta*epsilon, updates)
@@ -289,7 +292,7 @@ for i_episode in itertools.count(1):
             f.write(f"{i_episode},{episode_reward}\n")
     #print("Config: {}|{}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,str('adp') if args.adaptive else str('sta'),plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
 
-    print("Config: {}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.kl_scale,plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+    print("Config: {}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,kl_scale_arg,plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
     
     if i_episode % 10 == 0 and args.eval is True and plot_warmup_flag:
         avg_reward = 0.
@@ -321,7 +324,7 @@ for i_episode in itertools.count(1):
 
         if len(eval_rewards) >= 5:
             # print("----------------------------------------")
-            # print(f"Config: {args.config}| KL: {args.kl_scale} warmup completed")
+            # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
             
             last_10_avg = np.mean(eval_rewards[-5:])
@@ -334,7 +337,7 @@ for i_episode in itertools.count(1):
                 torch.save(policy, own_policy_name)
 
                 critic_target = agent.critic_target.state_dict()
-                torch.save(critic_target, f"critic_target_{args.own_policy_idx}_{args.kl_scale}.pth")
+                torch.save(critic_target, f"critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
 
         eval_rewards.append(avg_reward)
 
@@ -343,7 +346,7 @@ for i_episode in itertools.count(1):
     #     torch.save(policy, own_policy_name)
 
     #     critic_target = agent.critic_target.state_dict()
-    #     torch.save(critic_target, f"critic_target_{args.own_policy_idx}_{args.kl_scale}.pth")
+    #     torch.save(critic_target, f"critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
 
  
 
