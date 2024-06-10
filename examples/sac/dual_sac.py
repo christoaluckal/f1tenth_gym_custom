@@ -12,7 +12,7 @@ exp_type = "f110"
 ep = 500000
 total_configs = 3
 
-kl_scales = [0,1,1e-1,1e-2]
+kl_scales = [0,1,0.5,0.05]
 
 # exp_base_1 = f"python3 main_multi.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{0}_{0} --cuda --num_steps {ep} --total_configs {total_configs} --kl_scale {0}"
 exp_base_2 = f"python3 main_multi.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{0}_{0} --cuda --num_steps {ep} --total_configs {total_configs} --kl_scale {0}"
