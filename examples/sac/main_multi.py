@@ -55,7 +55,7 @@ parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
 parser.add_argument('--warmup',type=int,default=0)
 parser.add_argument('--freq',type=int,default=5)
-parser.add_argument('--max_episodes',type=int,default=1200)
+parser.add_argument('--max_episodes',type=int,default=800)
 args = parser.parse_args()
 
 # args.warmup = int(args.num_steps*0.2)

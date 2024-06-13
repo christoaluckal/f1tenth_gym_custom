@@ -203,7 +203,8 @@ class SAC(object):
 
         self.critic.eval()
 
-        curr_actions_prob = self.policy.sample(states)[1]
+        curr_actions_prob = self.policy.sample(states)[2][:,0]
+        
 
         if self.kl_scale == 0:
             return 0, self.kl_scale, self.own_idx
@@ -219,7 +220,8 @@ class SAC(object):
             temp_critic.load_state_dict(critic_dict)
             temp_policy.eval()
             temp_critic.eval()
-            pi,log_pi, _ = temp_policy.sample(states)
+            pi,log_pi, mu = temp_policy.sample(states)
+            mu = mu[:,0]
             with torch.no_grad():
                 qf1_pi, qf2_pi = temp_critic(states, pi)
                 
@@ -357,8 +359,9 @@ class SAC(object):
                     curr_std = self.policy.last_std
 
                 else:
+                    
                     KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch,memory=memory)
-
+                    print(f"IDX:{self.own_idx}, KL:{KL}, Beta:{beta_s}, Index:{idx}")
                     beta_s = self.kl_scale
 
                     if epsilon is not None and epsilon < 1:

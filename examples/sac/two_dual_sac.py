@@ -27,21 +27,21 @@ for _ in range(3):
     # kl_scales = [0,1,5,10,50,100,500,1000]
     # kl_scales = [[0,5],[10,20],[50,100],[100,200],[500,1000]]
     # kl_scales = [[0,5,10],[20,50,100]]
-    kl_scales = [[0,0.1],[0.5,1]]
+    kl_scales = [[0,1],[5,50]]
 
     for idx,kl_scale in enumerate(kl_scales):
         # exp_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{int(kl_scale*10)} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale} --total_configs {total_configs}"
         # exp_2 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{int(kl_scale*10)} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale} --total_configs {total_configs}"
         # exp_3 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{int(kl_scale*10)} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale} --total_configs {total_configs}"
 
-        exp_1_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[0])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[0]} --total_configs {total_configs}"
-        exp_2_1 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[0])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[0]} --total_configs {total_configs}"
-        exp_3_1 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[0])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[0]} --total_configs {total_configs}"
+        exp_1_1 = f"python3 main_multi.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[0])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[0]} --total_configs {total_configs}"
+        exp_2_1 = f"python3 main_multi.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[0])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[0]} --total_configs {total_configs}"
+        exp_3_1 = f"python3 main_multi.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[0])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[0]} --total_configs {total_configs}"
         
 
-        exp_1_2 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[1])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[1]} --total_configs {total_configs}"
-        exp_2_2 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[1])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[1]} --total_configs {total_configs}"
-        exp_3_2 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[1])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[1]} --total_configs {total_configs}"
+        exp_1_2 = f"python3 main_multi.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[1])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[1]} --total_configs {total_configs}"
+        exp_2_2 = f"python3 main_multi.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[1])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[1]} --total_configs {total_configs}"
+        exp_3_2 = f"python3 main_multi.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[1])} --cup_flag True --cuda --num_steps {ep} --kl_scale {kl_scale[1]} --total_configs {total_configs}"
 
         processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp_1_1, exp_2_1, exp_3_1, exp_1_2, exp_2_2, exp_3_2]]
 
