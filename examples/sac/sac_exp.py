@@ -61,9 +61,10 @@ def non_multi(rand_flag=False):
     total_configs = 3
 
     if rand_flag:
-        kl_scales = [[0,np.round(np.random.uniform(0,1),2)],[np.round(np.random.uniform(1,10),2),np.round(np.random.uniform(10,50),2)]]
+        # kl_scales = [[0,np.round(np.random.uniform(0,1),2)],[np.round(np.random.uniform(1,10),2),np.round(np.random.uniform(10,50),2)]]
+        kl_scales = [0,np.round(np.random.uniform(0,1),2),np.round(np.random.uniform(1,10),2),np.round(np.random.uniform(10,50),2)]
     else:
-        kl_scales = [0,1,0.5,0.05]
+        kl_scales = [1,0.5,0.05]
 
     base_exp_str = f" --max_episodes {args.ep} --decay_ep {args.decay_ep} --total_configs {total_configs} --cuda"
 

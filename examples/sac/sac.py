@@ -229,7 +229,7 @@ class SAC(object):
                 EA = min_qf_pi - self.alpha*log_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
-                kl_scores.append(self._KL(curr_actions_prob,log_pi))
+                kl_scores.append(self._KL(curr_actions_prob,mu))
                 if self.adaptive:
                     qV = self.value_network(states)
                     EA = min_qf_pi - self.alpha * log_pi - qV
