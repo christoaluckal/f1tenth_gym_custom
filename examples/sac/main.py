@@ -326,7 +326,7 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 25:
+        if len(eval_rewards) >= 15:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
