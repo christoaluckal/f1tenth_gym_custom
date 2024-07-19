@@ -169,7 +169,10 @@ class SAC(object):
         probs_a = np.exp(a) / np.sum(np.exp(a))
         probs_b = np.exp(b) / np.sum(np.exp(b))
 
-        kl = np.sum(probs_a * np.log(probs_a / probs_b))
+        # kl = np.sum(probs_a * np.log(probs_a / probs_b))
+
+        mask_a = probs_a > 1e-3
+        kl = np.sum(probs_a[mask_a] * np.log(probs_a[mask_a] / probs_b[mask_a]))
 
         return kl
 
