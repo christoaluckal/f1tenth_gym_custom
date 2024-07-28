@@ -127,6 +127,14 @@ def register_lunarlander(config=1):
 
     return env, eval_batch
 
+
+try:
+    if not os.path.exists('runs'):
+        os.makedirs('runs')
+except Exception as e:
+    pass
+
+
 if args.kl_scale < 1e-4:
     kl_scale_arg = 0
 else:
@@ -138,25 +146,19 @@ if "f110" in args.env_name:
 elif "lunar" in args.env_name:
     env,eval_batch = register_lunarlander(args.config)
 
-own_policy_name = f"policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}_{kl_scale_arg}.pth"
+own_policy_name = f"runs/policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}_{kl_scale_arg}.pth"
 
 if args.multi:
-    other_policies = [f"policy_{str('adp') if args.adaptive else str('sta')}_{i}_{kl_scale_arg}.pth" for i in range(1,args.total_configs+1)]
-    other_critics = [f"critic_target_{i}_{kl_scale_arg}.pth" for i in range(1,args.total_configs+1)]
+    other_policies = [f"runs/policy_{str('adp') if args.adaptive else str('sta')}_{i}_{kl_scale_arg}.pth" for i in range(1,args.total_configs+1)]
+    other_critics = [f"runs/critic_target_{i}_{kl_scale_arg}.pth" for i in range(1,args.total_configs+1)]
 else:
-    other_policies = [own_policy_name, f"policy_sta_{args.best_idx}_0.pth"]
-    other_critics = [f"critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth", f"critic_target_{args.best_idx}_0.pth"]
+    other_policies = [own_policy_name, f"runs/policy_sta_{args.best_idx}_0.pth"]
+    other_critics = [f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth", f"runs/critic_target_{args.best_idx}_0.pth"]
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
 train_csv = f"runs/train_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}.csv"
 test_csv = f"runs/test_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}.csv"
-
-try:
-    if not os.path.exists('runs'):
-        os.makedirs('runs')
-except Exception as e:
-    pass
 
 try:
     if not os.path.exists(train_csv):
@@ -341,25 +343,25 @@ for i_episode in itertools.count(1):
 
         print("----------------------------------------")
         # print("Config: {}|{}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,args.adaptive,episodes, round(avg_reward, 2)))
-        print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.cup_flag,episodes, round(avg_reward, 2)))
+        print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.kl_scale,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 15:
+        if len(eval_rewards) >= 10:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
             
-            last_10_avg = np.mean(eval_rewards[-5:])
+            last_avg = np.mean(eval_rewards[-5:])
 
             if args.cup_flag:
                 regularization_warmup_flag = True
 
-            if avg_reward > last_10_avg:
+            if avg_reward > last_avg:
                 policy = agent.policy.state_dict()
                 torch.save(policy, own_policy_name)
 
                 critic_target = agent.critic_target.state_dict()
-                torch.save(critic_target, f"critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
+                torch.save(critic_target, f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
 
         eval_rewards.append(avg_reward)
 

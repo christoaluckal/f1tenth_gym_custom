@@ -133,11 +133,11 @@ class SAC(object):
             #     torch.save(policy_dict, f"policy_{own_idx}.pth")
             # else:
             #     print(f"policy_{own_idx}.pth already exists")
-            if os.path.exists(f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth"):
-                os.remove(f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth")
+            if os.path.exists(f"runs/policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth"):
+                os.remove(f"runs/policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth")
 
             policy_dict = self.policy.state_dict()
-            torch.save(policy_dict, f"policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth")
+            torch.save(policy_dict, f"runs/policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth")
 
                 
 

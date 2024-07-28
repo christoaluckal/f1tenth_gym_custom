@@ -19,7 +19,7 @@ def run_exp(exp):
     call(exp, shell=True)
 
 def multi(rand_flag=False):
-    exp_type = "f110"
+    exp_type = "lunar"
     kl_scales = []
 
     total_configs = 3
@@ -53,7 +53,7 @@ def multi(rand_flag=False):
             for p in processes:
                 p.join()
 
-            call(args="rm policy_*.pth",shell=True)
+#            call(args="rm policy_*.pth",shell=True)
 
 def non_multi(rand_flag=False):
     exp_type = "f110"
