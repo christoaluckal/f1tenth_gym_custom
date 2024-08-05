@@ -317,7 +317,7 @@ for i_episode in itertools.count(1):
 
     print("Config: {}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,kl_scale_arg,plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
     
-    if i_episode % 50 == 0 and args.eval is True and plot_warmup_flag:
+    if i_episode % 20 == 0 and args.eval is True and plot_warmup_flag:
         avg_reward = 0.
         episodes = 5
         for _  in range(episodes):
@@ -348,22 +348,22 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.kl_scale,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 2:
+        if len(eval_rewards) >= 5:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
             
-            # last_avg = np.mean(eval_rewards[-5:])
+            last_avg = np.mean(eval_rewards[-5:])
 
             if args.cup_flag:
                 regularization_warmup_flag = True
 
-            # if avg_reward > last_avg:
-            policy = agent.policy.state_dict()
-            torch.save(policy, own_policy_name)
+            if avg_reward > last_avg:
+                policy = agent.policy.state_dict()
+                torch.save(policy, own_policy_name)
 
-            critic = agent.critic.state_dict()
-            torch.save(critic, f"runs/critic_{args.own_policy_idx}_{kl_scale_arg}.pth")
+                critic = agent.critic.state_dict()
+                torch.save(critic, f"runs/critic_{args.own_policy_idx}_{kl_scale_arg}.pth")
 
         eval_rewards.append(avg_reward)
 
