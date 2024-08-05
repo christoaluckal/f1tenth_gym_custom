@@ -229,7 +229,8 @@ class SAC(object):
                 qf1_pi, qf2_pi = temp_critic(states, pi)
                 
                 min_qf_pi = torch.max(qf1_pi, qf2_pi)
-                EA = min_qf_pi - self.alpha*log_pi
+                # EA = min_qf_pi - self.alpha*log_pi
+                EA = min_qf_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
                 kl_scores.append(self._KL(curr_actions_prob,mu))
@@ -242,6 +243,8 @@ class SAC(object):
                     values.append(qV_mean.cpu().numpy())
             
         self.critic.train()
+
+        # print(f"IDX:{self.own_idx}| {advantages}")
 
         max_idx = np.argmax(advantages)
 
@@ -364,7 +367,7 @@ class SAC(object):
                 else:
                     
                     KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch,memory=memory)
-                    print(f"IDX:{self.own_idx}, KL:{KL}, Beta:{beta_s}, Index:{idx}")
+                    # print(f"IDX:{self.own_idx}, KL:{KL}, Beta:{beta_s}, Index:{idx}")
                     beta_s = self.kl_scale
 
                     if epsilon is not None and epsilon < 1:

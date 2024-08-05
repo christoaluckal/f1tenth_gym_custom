@@ -61,8 +61,7 @@ def non_multi(rand_flag=False):
     total_configs = 3
 
     if rand_flag:
-        # kl_scales = [[0,np.round(np.random.uniform(0,1),2)],[np.round(np.random.uniform(1,10),2),np.round(np.random.uniform(10,50),2)]]
-        kl_scales = [0,np.round(np.random.uniform(0,1),2),np.round(np.random.uniform(1,10),2),np.round(np.random.uniform(10,50),2)]
+        kl_scales = [0,1,np.round(np.random.uniform(10,100),1),np.round(np.random.uniform(100,1000),1)]
     else:
         kl_scales = [1,0.5,0.05]
 
@@ -73,11 +72,11 @@ def non_multi(rand_flag=False):
   
     processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp_base_2]]
 
-    for p in processes:
-        p.start()
+    # for p in processes:
+    #     p.start()
 
-    for p in processes:
-        p.join()
+    # for p in processes:
+    #     p.join()
 
     base_exp_str = f" --max_episodes {args.ep} --decay_ep {args.decay_ep} --total_configs {total_configs} --cup_flag True --cuda"
 
