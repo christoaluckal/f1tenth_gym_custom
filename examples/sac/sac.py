@@ -156,10 +156,12 @@ class SAC(object):
         b = []
 
         for i in range(len(p)):
-            if p[i] == 0:
-                p[i] = 1e-4
-            if q[i] == 0:
-                q[i] = 1e-4
+            # if p[i] == 0:
+            #     p[i] = 1e-4
+            # if q[i] == 0:
+            #     q[i] = 1e-4
+            if p[i] == 0 or q[i] == 0:
+                continue
             a.append(p[i].item())
             b.append(q[i].item())
 
@@ -243,8 +245,6 @@ class SAC(object):
                     values.append(qV_mean.cpu().numpy())
             
         self.critic.train()
-
-        # print(f"IDX:{self.own_idx}| {advantages}")
 
         max_idx = np.argmax(advantages)
 

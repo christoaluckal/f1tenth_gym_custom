@@ -22,7 +22,7 @@ parser.add_argument('--tau', type=float, default=0.005, metavar='G',
                     help='target smoothing coefficient(τ) (default: 0.005)')
 parser.add_argument('--lr', type=float, default=0.003, metavar='G',
                     help='learning rate (default: 0.0003)')
-parser.add_argument('--alpha', type=float, default=0.1, metavar='G',
+parser.add_argument('--alpha', type=float, default=0.2, metavar='G',
                     help='Temperature parameter α determines the relative importance of the entropy\
                             term against the reward (default: 0.2)')
 parser.add_argument('--automatic_entropy_tuning', type=bool, default=True, metavar='G',
@@ -33,13 +33,13 @@ parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                     help='batch size (default: 256)')
 parser.add_argument('--num_steps', type=int, default=2000001, metavar='N',
                     help='maximum number of steps (default: 1000000)')
-parser.add_argument('--hidden_size', type=int, default=128, metavar='N',
+parser.add_argument('--hidden_size', type=int, default=512, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
 parser.add_argument('--start_steps', type=int, default=10000, metavar='N',
                     help='Steps sampling random actions (default: 10000)')
-parser.add_argument('--target_update_interval', type=int, default=100, metavar='N',
+parser.add_argument('--target_update_interval', type=int, default=10, metavar='N',
                     help='Value target update per no. of updates per step (default: 1)')
 parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
                     help='size of replay buffer (default: 10000000)')
@@ -150,10 +150,10 @@ own_policy_name = f"runs/policy_{str('adp') if args.adaptive else str('sta')}_{a
 
 if args.multi:
     other_policies = [f"runs/policy_{str('adp') if args.adaptive else str('sta')}_{i}_{kl_scale_arg}.pth" for i in range(1,args.total_configs+1)]
-    other_critics = [f"runs/critic_{i}_{kl_scale_arg}.pth" for i in range(1,args.total_configs+1)]
+    other_critics = [f"runs/critic_target_{i}_{kl_scale_arg}.pth" for i in range(1,args.total_configs+1)]
 else:
     other_policies = [own_policy_name, f"runs/policy_sta_{args.best_idx}_0.pth"]
-    other_critics = [f"runs/critic_{args.own_policy_idx}_{kl_scale_arg}.pth", f"runs/critic_{args.best_idx}_0.pth"]
+    other_critics = [f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth", f"runs/critic_target_{args.best_idx}_0.pth"]
 
 experiment = f"runs/{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{args.env_name}_{args.policy}_{'autotune' if args.automatic_entropy_tuning else ''}"
 
@@ -317,9 +317,9 @@ for i_episode in itertools.count(1):
 
     print("Config: {}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,kl_scale_arg,plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
     
-    if i_episode % 20 == 0 and args.eval is True and plot_warmup_flag:
+    if i_episode % 10 == 0 and args.eval is True and plot_warmup_flag:
         avg_reward = 0.
-        episodes = 5
+        episodes = 10
         for _  in range(episodes):
             state = env.reset()
             if type(state)==tuple:
@@ -348,7 +348,7 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.kl_scale,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 5:
+        if len(eval_rewards) >= 10:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
@@ -362,8 +362,8 @@ for i_episode in itertools.count(1):
                 policy = agent.policy.state_dict()
                 torch.save(policy, own_policy_name)
 
-                critic = agent.critic.state_dict()
-                torch.save(critic, f"runs/critic_{args.own_policy_idx}_{kl_scale_arg}.pth")
+                critic_target = agent.critic_target.state_dict()
+                torch.save(critic_target, f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
 
         eval_rewards.append(avg_reward)
 
