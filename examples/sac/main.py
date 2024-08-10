@@ -33,7 +33,7 @@ parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                     help='batch size (default: 256)')
 parser.add_argument('--num_steps', type=int, default=2000001, metavar='N',
                     help='maximum number of steps (default: 1000000)')
-parser.add_argument('--hidden_size', type=int, default=512, metavar='N',
+parser.add_argument('--hidden_size', type=int, default=128, metavar='N',
                     help='hidden size (default: 256)')
 parser.add_argument('--updates_per_step', type=int, default=1, metavar='N',
                     help='model updates per simulator step (default: 1)')
@@ -220,7 +220,8 @@ for i_episode in itertools.count(1):
     state = env.reset()
     if regularization_warmup_flag:
         # epsilon *= decay
-        epsilon = (1-d_episodes/args.max_episodes)
+        # epsilon = (1-d_episodes/args.max_episodes)
+        epsilon = 1
         d_episodes+=1
         
     while not done:
@@ -348,7 +349,7 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.kl_scale,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 10:
+        if len(eval_rewards) >= 20:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
