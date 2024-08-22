@@ -162,7 +162,7 @@ cython_debug/
 
 docs/
 Dockerfile
-setup.py
+# setup.py
 LICENSE
 
 examples/sac/runs
