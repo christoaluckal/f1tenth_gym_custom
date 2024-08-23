@@ -198,7 +198,7 @@ class SAC(object):
         
 
         # states = np.copy(eval_batch)
-        states,_,_,_,_ = memory.sample(batch_size=128)
+        states,_,_,_,_ = memory.sample(batch_size=32)
         states = torch.FloatTensor(states).to(self.device)
 
         advantages = []
@@ -231,8 +231,8 @@ class SAC(object):
                 qf1_pi, qf2_pi = temp_critic(states, pi)
                 
                 min_qf_pi = torch.max(qf1_pi, qf2_pi)
-                # EA = min_qf_pi - self.alpha*log_pi
-                EA = min_qf_pi
+                EA = min_qf_pi - self.alpha*log_pi
+                # EA = min_qf_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
                 kl_scores.append(self._KL(curr_actions_prob,mu))

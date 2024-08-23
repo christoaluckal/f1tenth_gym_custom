@@ -368,7 +368,7 @@ class F110_Cust_Env(gym.Env):
         self.collisions = obs_dict['collisions']
 
     def get_dummies(self):
-        t = np.linspace(0,self.track_length,32)
+        t = np.linspace(0,self.track_length,128)
 
         dx_dt = self.x_spline(t,1)
         dy_dt = self.y_spline(t,1)

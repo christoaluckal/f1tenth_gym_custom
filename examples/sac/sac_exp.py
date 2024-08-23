@@ -8,7 +8,8 @@ import numpy as np
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--multi', action='store_true', help='multi agent')
+# parser.add_argument('--multi', action='store_true', help='multi agent')
+parser.add_argument('--multi',type=int,default=2)
 parser.add_argument('--rand_kl', action='store_true', help='random kl')
 parser.add_argument('--ep',type=int,default=1200)
 parser.add_argument('--decay_ep',type=int,default=1200)
@@ -28,11 +29,11 @@ def multi(rand_flag=False):
         kl_scales = [[0,np.round(np.random.uniform(1000,2000),1)],[np.round(np.random.uniform(500,1000),1),np.round(np.random.uniform(100,500),1)]]
     else:
         # kl_scales = [[0,0.5],[5,50]]
-        kl_scales = [[0,600],[1000,100]]
+        kl_scales = [[0,1],[30,50]]
 
     base_exp_str = f" --multi {args.multi} --max_episodes {args.ep} --decay_ep {args.decay_ep} --total_configs {total_configs} --cup_flag True --cuda"
 
-    for _ in range(3):
+    for _ in range(5):
         
 
         for idx,kl_scale in enumerate(kl_scales):
@@ -55,6 +56,46 @@ def multi(rand_flag=False):
                 p.join()
 
 #            call(args="rm policy_*.pth",shell=True)
+
+def multi3(rand_flag=False):
+    exp_type = "f110"
+    kl_scales = []
+
+    total_configs = 3
+
+    if rand_flag:
+        kl_scales = [[0,np.round(np.random.uniform(1000,2000),1)],[np.round(np.random.uniform(500,1000),1),np.round(np.random.uniform(100,500),1)]]
+    else:
+        # kl_scales = [[0,0.5],[5,50]]
+        kl_scales = [[0,100,200],[400,600,1000]]
+
+    base_exp_str = f" --multi {args.multi} --max_episodes {args.ep} --decay_ep {args.decay_ep} --total_configs {total_configs} --cup_flag True --cuda"
+
+    for _ in range(3):
+        
+
+        for idx,kl_scale in enumerate(kl_scales):
+
+            exp_1_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[0])} --kl_scale {kl_scale[0]}"+base_exp_str
+            exp_2_1 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[0])} --kl_scale {kl_scale[0]}"+base_exp_str
+            exp_3_1 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[0])} --kl_scale {kl_scale[0]}"+base_exp_str
+            
+
+            exp_1_2 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[1])} --kl_scale {kl_scale[1]}"+base_exp_str
+            exp_2_2 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[1])} --kl_scale {kl_scale[1]}"+base_exp_str
+            exp_3_2 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[1])} --kl_scale {kl_scale[1]}"+base_exp_str
+
+            exp_1_3 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[2])} --kl_scale {kl_scale[2]}"+base_exp_str
+            exp_2_3 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[2])} --kl_scale {kl_scale[2]}"+base_exp_str
+            exp_3_3 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[2])} --kl_scale {kl_scale[2]}"+base_exp_str
+
+            processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp_1_1, exp_2_1, exp_3_1, exp_1_2, exp_2_2, exp_3_2, exp_1_3, exp_2_3, exp_3_3]]
+
+            for p in processes:
+                p.start()
+
+            for p in processes:
+                p.join()
 
 def non_multi(rand_flag=False):
     exp_type = "f110"
@@ -98,8 +139,15 @@ def non_multi(rand_flag=False):
                 p.join()     
 
 
-if args.multi:
-    multi(args.rand_kl)
+# if args.multi:
+#     multi(args.rand_kl)
 
+# else:
+#     non_multi(args.rand_kl)
+
+if args.multi == 2:
+    multi(args.rand_kl)
+elif args.multi == 3:
+    multi3(args.rand_kl)
 else:
     non_multi(args.rand_kl)

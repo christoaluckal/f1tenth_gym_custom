@@ -55,7 +55,7 @@ parser.add_argument('--beta1',type=float,default=0)
 parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
 parser.add_argument('--warmup',type=int,default=0)
-parser.add_argument('--freq',type=int,default=5)
+parser.add_argument('--freq',type=int,default=1)
 parser.add_argument('--max_episodes',type=int,default=1000)
 parser.add_argument('--decay_ep',type=int,default=1000)
 parser.add_argument('--multi',type=bool,default=False)
@@ -349,7 +349,7 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.kl_scale,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 20:
+        if len(eval_rewards) >= 5:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
