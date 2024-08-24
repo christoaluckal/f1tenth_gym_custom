@@ -235,53 +235,63 @@ for i_episode in itertools.count(1):
             # Number of updates per step in environment
             for i in range(args.updates_per_step):
                 # Update parameters of all the networks
-                try:
-                    if i_episode % update_freq == 0 and regularization_warmup_flag:
-                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True,epsilon=epsilon)
-                        if args.cup_flag:
-                            # writer.add_scalar('div/beta1', args.beta1, updates)
-                            # writer.add_scalar('div/beta2', args.beta2, updates)
-                            #writer.add_scalar('div/kl_scale', kl_scale_arg, updates)
-                            writer.add_scalar('div/kl_original', kl, updates)
-                            writer.add_scalar('div/epsilon', epsilon, updates)
-                            writer.add_scalar('div/kl_scaled', kl*beta*epsilon, updates)
-                            if idx is not None:
-                                writer.add_scalar('div/idx',idx,updates)
-
-                            
-                        else:
-                            writer.add_scalar('div/kl_scale', 0, updates)
-                            writer.add_scalar('div/kl_original', 0, updates)
-                            writer.add_scalar('div/kl_scaled', 0, updates)
-                            if idx is not None:
-                                writer.add_scalar('div/idx',idx,updates)
-
+                # try:
+                if i_episode % update_freq == 0 and regularization_warmup_flag:
+                    # critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True,epsilon=epsilon)
+                    output = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True,epsilon=epsilon)
+                    if output is not None:
+                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = output
                     else:
-                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates)
+                        continue
 
-                    # if updates > args.warmup:
-                    #     warmup_flag = True
-
-                    if updates > plot_warmup_count:
-                        plot_warmup_flag = True
-
-                    # if updates > regularization_warmup_count:
-                    #     regularization_warmup_flag = True
-
-
-                    if updates % update_freq == 0:
-                        # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
-                        # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
-                        writer.add_scalar('loss/policy', policy_loss, updates)
-                        writer.add_scalar('loss/entropy_loss', ent_loss, updates)
-                        # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
+                    if args.cup_flag:
+                        # writer.add_scalar('div/beta1', args.beta1, updates)
+                        # writer.add_scalar('div/beta2', args.beta2, updates)
+                        #writer.add_scalar('div/kl_scale', kl_scale_arg, updates)
+                        writer.add_scalar('div/kl_original', kl, updates)
+                        writer.add_scalar('div/epsilon', epsilon, updates)
+                        writer.add_scalar('div/kl_scaled', kl*beta*epsilon, updates)
+                        if idx is not None:
+                            writer.add_scalar('div/idx',idx,updates)
 
                         
-                    updates += 1
+                    else:
+                        writer.add_scalar('div/kl_scale', 0, updates)
+                        writer.add_scalar('div/kl_original', 0, updates)
+                        writer.add_scalar('div/kl_scaled', 0, updates)
+                        if idx is not None:
+                            writer.add_scalar('div/idx',idx,updates)
 
-                except Exception as e:
-                    print("Train Exception:",e)
-                    continue
+                else:
+                    output = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True,epsilon=epsilon)
+                    if output is not None:
+                        critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = output
+                    else:
+                        continue
+
+                # if updates > args.warmup:
+                #     warmup_flag = True
+
+                if updates > plot_warmup_count:
+                    plot_warmup_flag = True
+
+                # if updates > regularization_warmup_count:
+                #     regularization_warmup_flag = True
+
+
+                if updates % update_freq == 0:
+                    # writer.add_scalar('loss/critic_1', critic_1_loss, updates)
+                    # writer.add_scalar('loss/critic_2', critic_2_loss, updates)
+                    writer.add_scalar('loss/policy', policy_loss, updates)
+                    writer.add_scalar('loss/entropy_loss', ent_loss, updates)
+                    # writer.add_scalar('entropy_temprature/alpha', alpha, updates)
+
+                    
+                updates += 1
+
+                # except Exception as e:
+                #     print("Train Exception:",e)
+                #     continue
 
                 
 
@@ -349,7 +359,7 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.kl_scale,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 0:
+        if len(eval_rewards) >= 5:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
@@ -363,7 +373,7 @@ for i_episode in itertools.count(1):
             policy = agent.policy.state_dict()
             torch.save(policy, own_policy_name)
 
-            critic_target = agent.critic_target.state_dict()
+            critic_target = agent.critic.state_dict()
             torch.save(critic_target, f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
 
         eval_rewards.append(avg_reward)

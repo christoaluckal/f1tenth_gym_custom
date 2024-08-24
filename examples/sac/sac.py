@@ -38,6 +38,8 @@ class SAC(object):
 
         self.device = torch.device("cuda" if args.cuda else "cpu")
 
+        self.num_inputs = num_inputs
+
         self.critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(device=self.device)
         self.critic_optim = Adam(self.critic.parameters(), lr=args.lr)
 
@@ -71,7 +73,7 @@ class SAC(object):
 
         self.own_idx = own_idx
 
-        torch.save(self.critic_target.state_dict(), f"runs/critic_target_{self.own_idx}_{self.kl_scale}.pth")
+        torch.save(self.critic.state_dict(), f"runs/critic_target_{self.own_idx}_{self.kl_scale}.pth")
         
 
 
@@ -147,32 +149,32 @@ class SAC(object):
             self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
 
-        while True:
-            c_list = [f"critic_target_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
-            p_list = [f"policy_{str('adp') if self.adaptive else str('sta')}_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
-            # critics = [x for x in os.listdir("runs/") if "critic_target" in x]
-            # policies = [x for x in os.listdir("runs/") if "policy_sta" in x]
-            critics = [x for x in os.listdir("runs/") if x in c_list]
-            policies = [x for x in os.listdir("runs/") if x in p_list]
-            if len(critics) == 3:
-                if len(policies) == 3:
-                    break
-            
 
+        self.all_models_available = False
 
+        # while True:
+        #     c_list = [f"critic_target_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
+        #     p_list = [f"policy_{str('adp') if self.adaptive else str('sta')}_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
+        #     # critics = [x for x in os.listdir("runs/") if "critic_target" in x]
+        #     # policies = [x for x in os.listdir("runs/") if "policy_sta" in x]
+        #     critics = [x for x in os.listdir("runs/") if x in c_list]
+        #     policies = [x for x in os.listdir("runs/") if x in p_list]
+        #     if len(critics) == 3:
+        #         if len(policies) == 3:
+        #             break
 
         self.temp_policies = []
         self.temp_critics = []
 
-        for idx,p in enumerate(other_policies):
-            policy_dict = torch.load(p)
-            critic_dict = torch.load(other_critics[idx])
-            temp_policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
-            temp_critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
-            temp_policy.load_state_dict(policy_dict)
-            temp_critic.load_state_dict(critic_dict)
-            self.temp_policies.append(temp_policy)
-            self.temp_critics.append(temp_critic)
+        # for idx,p in enumerate(other_policies):
+        #     policy_dict = torch.load(p)
+        #     critic_dict = torch.load(other_critics[idx])
+        #     temp_policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
+        #     temp_critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
+        #     temp_policy.load_state_dict(policy_dict)
+        #     temp_critic.load_state_dict(critic_dict)
+        #     self.temp_policies.append(temp_policy)
+        #     self.temp_critics.append(temp_critic)
 
     def reload_networks(self, other_policies, other_critics):
         for idx,p in enumerate(other_policies):
@@ -291,6 +293,29 @@ class SAC(object):
         return action.detach().cpu().numpy()[0]
 
     def update_parameters(self, memory, batch_size, updates, guided_itr=False,epsilon=None):
+
+        if not self.all_models_available:
+            c_list = [f"critic_target_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
+            p_list = [f"policy_{str('adp') if self.adaptive else str('sta')}_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
+            critics = [x for x in os.listdir("runs/") if x in c_list]
+            policies = [x for x in os.listdir("runs/") if x in p_list]
+            if len(critics) == 3:
+                if len(policies) == 3:
+                    self.all_models_available = True
+                    for idx in range(1,4):
+                        temp_policy = GaussianPolicy(self.num_inputs, self.action_space.shape[0], self.hidden_size, self.action_space).to(self.device)
+                        temp_critic = QNetwork(self.num_inputs, self.action_space.shape[0], self.hidden_size).to(self.device)
+                        temp_policy.load_state_dict(torch.load(f"runs/policy_{str('adp') if self.adaptive else str('sta')}_{idx}_{self.kl_scale}.pth"))
+                        temp_critic.load_state_dict(torch.load(f"runs/critic_target_{idx}_{self.kl_scale}.pth"))
+                        self.temp_policies.append(temp_policy)
+                        self.temp_critics.append(temp_critic)
+                    print("All models loaded")
+                else:
+                    return 
+            else:
+                return
+
+
         # Sample a batch from memory
         state_batch, action_batch, reward_batch, next_state_batch, mask_batch = memory.sample(batch_size=batch_size)
 
@@ -322,20 +347,6 @@ class SAC(object):
 
         qf1_pi, qf2_pi = self.critic(state_batch, pi)
         min_qf_pi = torch.min(qf1_pi, qf2_pi)
-
-        # target_value = (min_qf_pi - (self.alpha * log_pi))
-        # value_loss = F.mse_loss(predicted_value,target_value)
-        if self.adaptive:
-            min_qf_copy = torch.clone(min_qf_pi)
-            log_pi_copy = torch.clone(log_pi)
-            predicted_value_copy = torch.clone(predicted_value)
-
-            target_value = (min_qf_copy - (self.alpha * log_pi_copy))
-            value_loss = F.mse_loss(predicted_value_copy,target_value)
-
-            self.value_optim.zero_grad()
-            value_loss.backward(retain_graph=True)
-            self.value_optim.step()
         
 
         policy_loss = ((self.alpha * log_pi) - min_qf_pi).mean() # Jπ = 𝔼st∼D,εt∼N[α * logπ(f(εt;st)|st) − Q(st,f(εt;st))]
@@ -346,15 +357,6 @@ class SAC(object):
         eps = 1
         idx = None
             
-        # if self.CUP_flag and guided_itr and self.kl_scale:
-        #     KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch)
-        #     policy_loss += KL*beta_s
-
-        #     curr_mean = self.policy.last_mean
-        #     curr_std = self.policy.last_std
-        # elif guided_itr:
-        #     curr_mean = self.policy.last_mean
-        #     curr_std = self.policy.last_std
 
         if self.CUP_flag:
             if guided_itr:
