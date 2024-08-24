@@ -55,7 +55,7 @@ parser.add_argument('--beta1',type=float,default=0)
 parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
 parser.add_argument('--warmup',type=int,default=0)
-parser.add_argument('--freq',type=int,default=1)
+parser.add_argument('--freq',type=int,default=15)
 parser.add_argument('--max_episodes',type=int,default=1000)
 parser.add_argument('--decay_ep',type=int,default=1000)
 parser.add_argument('--multi',type=bool,default=False)
@@ -241,7 +241,7 @@ for i_episode in itertools.count(1):
                         if args.cup_flag:
                             # writer.add_scalar('div/beta1', args.beta1, updates)
                             # writer.add_scalar('div/beta2', args.beta2, updates)
-                            writer.add_scalar('div/kl_scale', kl_scale_arg, updates)
+                            #writer.add_scalar('div/kl_scale', kl_scale_arg, updates)
                             writer.add_scalar('div/kl_original', kl, updates)
                             writer.add_scalar('div/epsilon', epsilon, updates)
                             writer.add_scalar('div/kl_scaled', kl*beta*epsilon, updates)
@@ -349,7 +349,7 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.kl_scale,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 5:
+        if len(eval_rewards) >= 0:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
@@ -359,12 +359,12 @@ for i_episode in itertools.count(1):
             if args.cup_flag:
                 regularization_warmup_flag = True
 
-            if avg_reward > last_avg:
-                policy = agent.policy.state_dict()
-                torch.save(policy, own_policy_name)
+            # if avg_reward > last_avg:
+            policy = agent.policy.state_dict()
+            torch.save(policy, own_policy_name)
 
-                critic_target = agent.critic_target.state_dict()
-                torch.save(critic_target, f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
+            critic_target = agent.critic_target.state_dict()
+            torch.save(critic_target, f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
 
         eval_rewards.append(avg_reward)
 

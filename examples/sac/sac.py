@@ -44,6 +44,7 @@ class SAC(object):
         self.critic_target = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
         hard_update(self.critic_target, self.critic)
 
+
         self.adaptive = adaptive
 
         if self.adaptive:
@@ -70,6 +71,7 @@ class SAC(object):
 
         self.own_idx = own_idx
 
+        torch.save(self.critic_target.state_dict(), f"runs/critic_target_{self.own_idx}_{self.kl_scale}.pth")
         
 
 
@@ -139,14 +141,46 @@ class SAC(object):
             policy_dict = self.policy.state_dict()
             torch.save(policy_dict, f"runs/policy_{str('adp') if self.adaptive else str('sta')}_{self.own_idx}_{self.kl_scale}.pth")
 
-                
-
-
         else:
             self.alpha = 0
             self.automatic_entropy_tuning = False
             self.policy = DeterministicPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
             self.policy_optim = Adam(self.policy.parameters(), lr=args.lr)
+
+        while True:
+            c_list = [f"critic_target_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
+            p_list = [f"policy_{str('adp') if self.adaptive else str('sta')}_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
+            # critics = [x for x in os.listdir("runs/") if "critic_target" in x]
+            # policies = [x for x in os.listdir("runs/") if "policy_sta" in x]
+            critics = [x for x in os.listdir("runs/") if x in c_list]
+            policies = [x for x in os.listdir("runs/") if x in p_list]
+            if len(critics) == 3:
+                if len(policies) == 3:
+                    break
+            
+
+
+
+        self.temp_policies = []
+        self.temp_critics = []
+
+        for idx,p in enumerate(other_policies):
+            policy_dict = torch.load(p)
+            critic_dict = torch.load(other_critics[idx])
+            temp_policy = GaussianPolicy(num_inputs, action_space.shape[0], args.hidden_size, action_space).to(self.device)
+            temp_critic = QNetwork(num_inputs, action_space.shape[0], args.hidden_size).to(self.device)
+            temp_policy.load_state_dict(policy_dict)
+            temp_critic.load_state_dict(critic_dict)
+            self.temp_policies.append(temp_policy)
+            self.temp_critics.append(temp_critic)
+
+    def reload_networks(self, other_policies, other_critics):
+        for idx,p in enumerate(other_policies):
+            policy_dict = torch.load(p)
+            critic_dict = torch.load(other_critics[idx])
+            self.temp_policies[idx].load_state_dict(policy_dict)
+            self.temp_critics[idx].load_state_dict(critic_dict)
+
 
     def _KL(self, p, q):
         p = p.detach().cpu().numpy()
@@ -171,10 +205,10 @@ class SAC(object):
         probs_a = np.exp(a) / np.sum(np.exp(a))
         probs_b = np.exp(b) / np.sum(np.exp(b))
 
-        # kl = np.sum(probs_a * np.log(probs_a / probs_b))
+        kl = np.sum(probs_a * np.log(probs_a / probs_b))
 
-        mask_a = probs_a > 1e-3
-        kl = np.sum(probs_a[mask_a] * np.log(probs_a[mask_a] / probs_b[mask_a]))
+        # mask_a = probs_a > 1e-3
+        # kl = np.sum(probs_a[mask_a] * np.log(probs_a[mask_a] / probs_b[mask_a]))
 
         return kl
 
@@ -202,11 +236,7 @@ class SAC(object):
         states = torch.FloatTensor(states).to(self.device)
 
         advantages = []
-        v_advantages = []
-        values = []
         kl_scores = []
-
-        self.critic.eval()
 
         curr_actions_prob = self.policy.sample(states)[2][:,0]
         
@@ -214,15 +244,14 @@ class SAC(object):
         if self.kl_scale == 0:
             return 0, self.kl_scale, self.own_idx
         
-        temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
-        temp_critic = QNetwork(num_inputs, self.action_space.shape[0], hidden_size).to(self.device)
+        # temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
+        # temp_critic = QNetwork(num_inputs, self.action_space.shape[0], hidden_size).to(self.device)
 
+        self.reload_networks(other_policies=other_policies, other_critics=self.other_critic_list)
 
-        for idx,p in enumerate(other_policies):
-            policy_dict = torch.load(p)
-            critic_dict = torch.load(self.other_critic_list[idx])
-            temp_policy.load_state_dict(policy_dict)
-            temp_critic.load_state_dict(critic_dict)
+        for idx in range(len(other_policies)):
+            temp_policy = self.temp_policies[idx]
+            temp_critic = self.temp_critics[idx]
             temp_policy.eval()
             temp_critic.eval()
             pi,log_pi, mu = temp_policy.sample(states)
@@ -236,43 +265,16 @@ class SAC(object):
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
                 kl_scores.append(self._KL(curr_actions_prob,mu))
-                if self.adaptive:
-                    qV = self.value_network(states)
-                    EA = min_qf_pi - self.alpha * log_pi - qV
-                    EA = EA.mean()
-                    qV_mean = qV.mean()
-                    v_advantages.append(EA.cpu().numpy())
-                    values.append(qV_mean.cpu().numpy())
-            
-        self.critic.train()
+
+
 
         max_idx = np.argmax(advantages)
-
-        # if self.own_idx == 3:
-        #     if advantages[1] > advantages[2]:
-        #         pprint({
-        #             "Advantages": advantages,
-        #             "KL Scores": kl_scores,
-        #             "Max Index": max_idx
-                
-        #         },indent=4)
 
         KL = kl_scores[max_idx]
 
         del temp_policy
 
-
-        if self.adaptive:
-            term1 = v_advantages[max_idx]
-            term2 = self.beta2*values[max_idx]
-            if term1 < term2:
-                beta_s = self.beta1*term1
-                return KL, beta_s, 1
-            else:
-                beta_s = self.beta1*term2
-                return KL, beta_s, 2
-        else:
-            return KL, self.kl_scale, max_idx+1
+        return KL, self.kl_scale, max_idx+1
 
 
         
