@@ -26,7 +26,7 @@ def multi(rand_flag=False):
     total_configs = 3
 
     if rand_flag:
-        kl_scales = [[0,1],[np.round(np.random.uniform(1,10),1),np.round(np.random.uniform(10,100),1)], [np.round(np.random.uniform(100,1000),1),np.round(np.random.uniform(1000,2000),1)]]
+        kl_scales = [[0,1],[np.round(np.random.uniform(0,1),1),np.round(np.random.uniform(0,1),1)],[np.round(np.random.uniform(1,10),1),np.round(np.random.uniform(10,100),1)], [np.round(np.random.uniform(100,1000),1),np.round(np.random.uniform(1000,2000),1)]]
     else:
         # kl_scales = [[0,0.5],[5,50]]
         kl_scales = [[0,1],[100,600]]
