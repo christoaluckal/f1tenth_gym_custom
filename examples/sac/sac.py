@@ -73,7 +73,7 @@ class SAC(object):
 
         self.own_idx = own_idx
 
-        torch.save(self.critic.state_dict(), f"runs/critic_target_{self.own_idx}_{self.kl_scale}.pth")
+        torch.save(self.critic_target.state_dict(), f"runs/critic_target_{self.own_idx}_{self.kl_scale}.pth")
         
 
 
@@ -234,7 +234,7 @@ class SAC(object):
         
 
         # states = np.copy(eval_batch)
-        states,_,_,_,_ = memory.sample(batch_size=32)
+        states,_,_,_,_ = memory.sample(batch_size=8)
         states = torch.FloatTensor(states).to(self.device)
 
         advantages = []

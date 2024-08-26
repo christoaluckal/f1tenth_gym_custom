@@ -55,7 +55,7 @@ parser.add_argument('--beta1',type=float,default=0)
 parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
 parser.add_argument('--warmup',type=int,default=0)
-parser.add_argument('--freq',type=int,default=15)
+parser.add_argument('--freq',type=int,default=3)
 parser.add_argument('--max_episodes',type=int,default=1000)
 parser.add_argument('--decay_ep',type=int,default=1000)
 parser.add_argument('--multi',type=bool,default=False)
@@ -373,7 +373,7 @@ for i_episode in itertools.count(1):
             policy = agent.policy.state_dict()
             torch.save(policy, own_policy_name)
 
-            critic_target = agent.critic.state_dict()
+            critic_target = agent.critic_target.state_dict()
             torch.save(critic_target, f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
 
         eval_rewards.append(avg_reward)
