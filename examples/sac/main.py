@@ -55,7 +55,7 @@ parser.add_argument('--beta1',type=float,default=0)
 parser.add_argument('--beta2',type=float,default=0)
 parser.add_argument('--total_configs',type=int,default=3)
 parser.add_argument('--warmup',type=int,default=0)
-parser.add_argument('--freq',type=int,default=30)
+parser.add_argument('--freq',type=int,default=5)
 parser.add_argument('--max_episodes',type=int,default=1000)
 parser.add_argument('--decay_ep',type=int,default=1000)
 parser.add_argument('--multi',type=bool,default=False)
@@ -184,7 +184,7 @@ except Exception as e:
 #Tensorboard
 writer = SummaryWriter(experiment)
 
-plot_warmup_flag = False
+plot_warmup_flag = True
 regularization_warmup_flag = False
 
 # Agent
@@ -200,6 +200,7 @@ agent = SAC(env.observation_space.shape[0],
             beta2=args.beta2,
             CUP_flag=args.cup_flag,
             adaptive=args.adaptive,
+            multi=args.multi,
             )
 
 # Memory
@@ -220,8 +221,8 @@ for i_episode in itertools.count(1):
     state = env.reset()
     if regularization_warmup_flag:
         # epsilon *= decay
-        # epsilon = (1-d_episodes/args.max_episodes)
-        epsilon = 1
+        epsilon = (1-d_episodes/args.max_episodes)
+        # epsilon = 1
         d_episodes+=1
         
     while not done:
@@ -240,7 +241,40 @@ for i_episode in itertools.count(1):
                         # critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True,epsilon=epsilon)
                         output = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True,epsilon=epsilon)
                         if output is not None:
-                            critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = output
+                            critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx, advantage = output
+                        else:
+                            continue
+
+
+
+                        if args.cup_flag:
+                            # writer.add_scalar('div/beta1', args.beta1, updates)
+                            # writer.add_scalar('div/beta2', args.beta2, updates)
+                            #writer.add_scalar('div/kl_scale', kl_scale_arg, updates)
+                            writer.add_scalar('div/kl_original', kl, updates)
+                            writer.add_scalar('div/epsilon', epsilon, updates)
+                            writer.add_scalar('div/kl_scaled', kl*beta*epsilon, updates)
+                            if idx is not None:
+                                writer.add_scalar('div/idx',idx,updates)
+
+                            if advantage is not None:
+                                writer.add_scalar('div/advantage',advantage,updates)
+
+                            
+                        else:
+                            writer.add_scalar('div/kl_scale', 0, updates)
+                            writer.add_scalar('div/kl_original', 0, updates)
+                            writer.add_scalar('div/kl_scaled', 0, updates)
+                            if idx is not None:
+                                writer.add_scalar('div/idx',idx,updates)
+
+                            if advantage is not None:
+                                writer.add_scalar('div/advantage',advantage,updates)
+
+                    else:
+                        output = agent.update_parameters(memory, args.batch_size, updates,guided_itr=False,epsilon=epsilon)
+                        if output is not None:
+                            critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx, advantage = output
                         else:
                             continue
 
@@ -254,6 +288,9 @@ for i_episode in itertools.count(1):
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
 
+                            if advantage is not None:
+                                writer.add_scalar('div/advantage',advantage,updates)
+
                             
                         else:
                             writer.add_scalar('div/kl_scale', 0, updates)
@@ -262,21 +299,8 @@ for i_episode in itertools.count(1):
                             if idx is not None:
                                 writer.add_scalar('div/idx',idx,updates)
 
-                    else:
-                        output = agent.update_parameters(memory, args.batch_size, updates,guided_itr=False,epsilon=epsilon)
-                        if output is not None:
-                            critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = output
-                        else:
-                            continue
-
-                    # if updates > args.warmup:
-                    #     warmup_flag = True
-
-                    if updates > plot_warmup_count:
-                        plot_warmup_flag = True
-
-                    # if updates > regularization_warmup_count:
-                    #     regularization_warmup_flag = True
+                            if advantage is not None:
+                                writer.add_scalar('div/advantage',advantage,updates)
 
 
                     if updates % update_freq == 0:
@@ -319,12 +343,12 @@ for i_episode in itertools.count(1):
     #     break
     if i_episode > args.max_episodes:
         break
-
+    
     if plot_warmup_flag:
         writer.add_scalar('reward/train', episode_reward, i_episode)
         with open(train_csv, 'a') as f:
             f.write(f"{i_episode},{episode_reward}\n")
-    #print("Config: {}|{}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,args.cup_flag,str('adp') if args.adaptive else str('sta'),plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
+
 
     print("Config: {}|{} warmup:{} Episode: {}, total numsteps: {}, episode steps: {}, reward: {}".format(args.config,kl_scale_arg,plot_warmup_count-updates if not plot_warmup_flag else 0,i_episode, total_numsteps, episode_steps, round(episode_reward, 2)))
     
@@ -359,22 +383,28 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.kl_scale,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 5:
+        if len(eval_rewards) >= 1:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
             
-            last_avg = np.mean(eval_rewards[-5:])
+            last_avg = np.mean(eval_rewards[-1:])
 
-            if args.cup_flag:
+            if args.cup_flag and avg_reward > last_avg:
                 regularization_warmup_flag = True
+                policy = agent.policy.state_dict()
+                torch.save(policy, own_policy_name)
+
+                critic_target = agent.critic_target.state_dict()
+                torch.save(critic_target, f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
+                
 
             # if avg_reward > last_avg:
-            policy = agent.policy.state_dict()
-            torch.save(policy, own_policy_name)
+            #     policy = agent.policy.state_dict()
+            #     torch.save(policy, own_policy_name)
 
-            critic_target = agent.critic_target.state_dict()
-            torch.save(critic_target, f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
+            #     critic_target = agent.critic_target.state_dict()
+            #     torch.save(critic_target, f"runs/critic_target_{args.own_policy_idx}_{kl_scale_arg}.pth")
 
         eval_rewards.append(avg_reward)
 

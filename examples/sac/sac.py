@@ -24,7 +24,9 @@ class SAC(object):
                  beta1=0,
                  beta2=0,
                  adaptive=False,
-                 kl_scale=30):
+                 kl_scale=30,
+                 multi=False
+                 ):
 
         self.gamma = args.gamma
         self.tau = args.tau
@@ -75,7 +77,7 @@ class SAC(object):
 
         torch.save(self.critic_target.state_dict(), f"runs/critic_target_{self.own_idx}_{self.kl_scale}.pth")
         
-
+        self.multi = multi
 
         # if beta1 == 0 or beta2 == 0:
         #     self.kl_scale = False
@@ -207,10 +209,10 @@ class SAC(object):
         probs_a = np.exp(a) / np.sum(np.exp(a))
         probs_b = np.exp(b) / np.sum(np.exp(b))
 
-        kl = np.sum(probs_a * np.log(probs_a / probs_b))
+        # kl = np.sum(probs_a * np.log(probs_a / probs_b))
 
-        # mask_a = probs_a > 1e-3
-        # kl = np.sum(probs_a[mask_a] * np.log(probs_a[mask_a] / probs_b[mask_a]))
+        mask_a = probs_a > 1e-3
+        kl = np.sum(probs_a[mask_a] * np.log(probs_a[mask_a] / probs_b[mask_a]))
 
         return kl
 
@@ -244,7 +246,7 @@ class SAC(object):
         
 
         if self.kl_scale == 0:
-            return 0, self.kl_scale, self.own_idx
+            return 0, self.kl_scale, self.own_idx, 0
         
         # temp_policy = GaussianPolicy(num_inputs, self.action_space.shape[0], hidden_size, self.action_space).to(self.device)
         # temp_critic = QNetwork(num_inputs, self.action_space.shape[0], hidden_size).to(self.device)
@@ -262,8 +264,8 @@ class SAC(object):
                 qf1_pi, qf2_pi = temp_critic(states, pi)
                 
                 min_qf_pi = torch.max(qf1_pi, qf2_pi)
-                EA = min_qf_pi - self.alpha*log_pi
-                # EA = min_qf_pi
+                # EA = min_qf_pi - self.alpha*log_pi
+                EA = min_qf_pi
                 EA = EA.mean()
                 advantages.append(EA.cpu().numpy())
                 kl_scores.append(self._KL(curr_actions_prob,mu))
@@ -274,9 +276,13 @@ class SAC(object):
 
         KL = kl_scores[max_idx]
 
-        del temp_policy
-
-        return KL, self.kl_scale, max_idx+1
+        if not self.multi:
+            adv = advantages[1]-advantages[0]
+            del temp_policy
+            return KL, self.kl_scale, max_idx+1, adv
+        else:
+            del temp_policy
+            return KL, self.kl_scale, max_idx+1, None
 
 
         
@@ -293,27 +299,55 @@ class SAC(object):
         return action.detach().cpu().numpy()[0]
 
     def update_parameters(self, memory, batch_size, updates, guided_itr=False,epsilon=None):
-
-        if not self.all_models_available:
-            c_list = [f"critic_target_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
-            p_list = [f"policy_{str('adp') if self.adaptive else str('sta')}_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
-            critics = [x for x in os.listdir("runs/") if x in c_list]
-            policies = [x for x in os.listdir("runs/") if x in p_list]
-            if len(critics) == 3:
-                if len(policies) == 3:
-                    self.all_models_available = True
-                    for idx in range(1,4):
-                        temp_policy = GaussianPolicy(self.num_inputs, self.action_space.shape[0], self.hidden_size, self.action_space).to(self.device)
-                        temp_critic = QNetwork(self.num_inputs, self.action_space.shape[0], self.hidden_size).to(self.device)
-                        temp_policy.load_state_dict(torch.load(f"runs/policy_{str('adp') if self.adaptive else str('sta')}_{idx}_{self.kl_scale}.pth"))
-                        temp_critic.load_state_dict(torch.load(f"runs/critic_target_{idx}_{self.kl_scale}.pth"))
-                        self.temp_policies.append(temp_policy)
-                        self.temp_critics.append(temp_critic)
-                    print("All models loaded")
-                else:
-                    return 
+        if self.CUP_flag:
+            if self.multi:
+                if not self.all_models_available:
+                    c_list = [f"critic_target_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
+                    p_list = [f"policy_{str('adp') if self.adaptive else str('sta')}_{x}_{self.kl_scale}.pth" for x in range(1,4) ]
+                    critics = [x for x in os.listdir("runs/") if x in c_list]
+                    policies = [x for x in os.listdir("runs/") if x in p_list]
+                    if len(critics) == self.total_policies:
+                        if len(policies) == self.total_policies:
+                            self.all_models_available = True
+                            for idx in range(1,4):
+                                temp_policy = GaussianPolicy(self.num_inputs, self.action_space.shape[0], self.hidden_size, self.action_space).to(self.device)
+                                temp_critic = QNetwork(self.num_inputs, self.action_space.shape[0], self.hidden_size).to(self.device)
+                                temp_policy.load_state_dict(torch.load(f"runs/policy_{str('adp') if self.adaptive else str('sta')}_{idx}_{self.kl_scale}.pth"))
+                                temp_critic.load_state_dict(torch.load(f"runs/critic_target_{idx}_{self.kl_scale}.pth"))
+                                self.temp_policies.append(temp_policy)
+                                self.temp_critics.append(temp_critic)
+                            print("Multi All models loaded")
+                        else:
+                            return 
+                    else:
+                        return
             else:
-                return
+                if not self.all_models_available:
+                    c_list = self.other_critic_list
+                    c_list = [x[5:] for x in c_list]
+                    p_list = self.other_policy_list
+                    p_list = [x[5:] for x in p_list]
+                    critics = [x for x in os.listdir("runs/") if x in c_list]
+                    policies = [x for x in os.listdir("runs/") if x in p_list]
+                    if len(critics) == len(self.other_critic_list):
+                        if len(policies) == len(self.other_policy_list):
+                            self.all_models_available = True
+                            for p,c in zip(self.other_policy_list,self.other_critic_list):
+                                # p_ = os.path.join("runs",p)
+                                # c_ = os.path.join("runs",c)
+                                p_ = p
+                                c_ = c
+                                temp_policy = GaussianPolicy(self.num_inputs, self.action_space.shape[0], self.hidden_size, self.action_space).to(self.device)
+                                temp_critic = QNetwork(self.num_inputs, self.action_space.shape[0], self.hidden_size).to(self.device)
+                                temp_policy.load_state_dict(torch.load(p_))
+                                temp_critic.load_state_dict(torch.load(c_))
+                                self.temp_policies.append(temp_policy)
+                                self.temp_critics.append(temp_critic)
+                            print("Non Multi All models loaded")
+                        else:
+                            return 
+                    else:
+                        return
 
 
         # Sample a batch from memory
@@ -356,12 +390,13 @@ class SAC(object):
         beta_s = 0
         eps = 1
         idx = None
+        adv = None
             
 
         if self.CUP_flag:
             if guided_itr:
                 if self.adaptive:
-                    KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch,memory=memory)
+                    KL,beta_s,idx,adv = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch,memory=memory)
 
                     policy_loss += KL*beta_s
 
@@ -370,7 +405,7 @@ class SAC(object):
 
                 else:
                     
-                    KL,beta_s,idx = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch,memory=memory)
+                    KL,beta_s,idx,adv = self.compute_KL_score(other_policies=self.other_policy_list, eval_batch=self.eval_batch, num_inputs=state_batch.shape[1], hidden_size=self.hidden_size, action_space=action_batch,memory=memory)
                     # print(f"IDX:{self.own_idx}, KL:{KL}, Beta:{beta_s}, Index:{idx}")
                     beta_s = self.kl_scale
 
@@ -414,7 +449,7 @@ class SAC(object):
         if updates % self.target_update_interval == 0:
             soft_update(self.critic_target, self.critic, self.tau)
 
-        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), KL, curr_mean, curr_std, beta_s, idx
+        return qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), KL, curr_mean, curr_std, beta_s, idx, adv
 
     # Save model parameters
     def save_checkpoint(self, env_name, suffix="", ckpt_path=None):
