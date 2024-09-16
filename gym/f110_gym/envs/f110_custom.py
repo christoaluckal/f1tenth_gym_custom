@@ -383,14 +383,14 @@ class F110_Cust_Env(gym.Env):
 
         for i in range(len(t)):
             current_closest_t = self.closest_spline_param(x[i],y[i],self.x_spline,self.y_spline)
-            t_vec = np.arange(current_closest_t,current_closest_t+3,0.1)
+            t_vec = np.arange(current_closest_t,current_closest_t+1,0.1)
             state = [phi[i],v[i]]
             for j in t_vec:
                 dx = self.x_spline(j)-x[i]
                 dy = self.y_spline(j)-y[i]
                 state.append(dx)
                 state.append(dy)
-            state = state[:62]
+            state = state[:22]
             batch.append(state)
         
         return np.array(batch)
@@ -478,7 +478,7 @@ class F110_Cust_Env(gym.Env):
         state = [theta,v]
 
         t = current_closest_t
-        t_vec = np.arange(t,t+3,0.1)
+        t_vec = np.arange(t,t+1,0.1)
 
         for i in t_vec:
             
@@ -491,19 +491,19 @@ class F110_Cust_Env(gym.Env):
             state.append(dx)
             state.append(dy)
 
-        state = state[:62]
+        state = state[:22]
 
         trunc = False
 
         if self.classic_control:
             return obs, reward, done, trunc, info
         
-        if len(state) != 62:
-            print("State length not 62")
-            while len(state) < 62:
+        if len(state) != 22:
+            print("State length not 22")
+            while len(state) < 22:
                 state.append(0)
             
-            while len(state) > 62:
+            while len(state) > 22:
                 state.pop(-1)
 
         

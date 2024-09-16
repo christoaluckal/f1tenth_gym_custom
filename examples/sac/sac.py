@@ -105,6 +105,8 @@ class SAC(object):
         #     self.beta2 = 0
         #     self.kl_scale = 1
 
+        self.total_policies = len(self.other_policy_list)
+
 
         info_dict = {
             "Config": args.config,
@@ -281,8 +283,9 @@ class SAC(object):
             del temp_policy
             return KL, self.kl_scale, max_idx+1, adv
         else:
+            adv = advantages[max_idx]-advantages[self.own_idx-1]
             del temp_policy
-            return KL, self.kl_scale, max_idx+1, None
+            return KL, self.kl_scale, max_idx+1, adv
 
 
         

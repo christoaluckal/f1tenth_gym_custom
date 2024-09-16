@@ -63,6 +63,7 @@ args = parser.parse_args()
 
 print("CUP:",args)
 
+
 # args.warmup = int(args.num_steps*0.2)
 
 # plot_warmup_count = int(args.num_steps*0.05)
@@ -236,6 +237,8 @@ for i_episode in itertools.count(1):
             # Number of updates per step in environment
             for i in range(args.updates_per_step):
                 # Update parameters of all the networks
+                if i_episode % args.warmup == 0:
+                    regularization_warmup_flag = True
                 try:
                     if i_episode % update_freq == 0 and regularization_warmup_flag:
                         # critic_1_loss, critic_2_loss, policy_loss, ent_loss, alpha, kl, mu, sig, beta, idx = agent.update_parameters(memory, args.batch_size, updates,guided_itr=True,epsilon=epsilon)
@@ -383,15 +386,15 @@ for i_episode in itertools.count(1):
         print("Config: {}|{} Test Episodes: {}, Avg. Reward: {}".format(args.config,args.kl_scale,episodes, round(avg_reward, 2)))
         print("----------------------------------------")
 
-        if len(eval_rewards) >= 1:
+        if len(eval_rewards) >= 5:
             # print("----------------------------------------")
             # print(f"Config: {args.config}| KL: {kl_scale_arg} warmup completed")
             # print("----------------------------------------")
             
-            last_avg = np.mean(eval_rewards[-1:])
+            last_avg = np.mean(eval_rewards[-5:])
 
             if args.cup_flag and avg_reward > last_avg:
-                regularization_warmup_flag = True
+
                 policy = agent.policy.state_dict()
                 torch.save(policy, own_policy_name)
 
