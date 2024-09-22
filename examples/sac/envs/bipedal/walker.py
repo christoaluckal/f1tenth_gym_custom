@@ -178,13 +178,15 @@ class BipedalWalker(gym.Env, EzPickle):
         self.prev_shaping = None
 
         self.hardcore = hardcore
-
-        if config == 1:
+        if config == 0:
             FRICTION = 2.5
+        elif config == 1:
+            FRICTION = 2
         elif config == 2:
-            FRICTION = 1.8
+            FRICTION = 1.5
         elif config == 3:
-            FRICTION = 1.0
+            FRICTION = 2.5
+            self.hardcore = True
 
         self.fd_polygon = fixtureDef(
             shape=polygonShape(vertices=[(0, 0), (1, 0), (1, -1), (0, -1)]),

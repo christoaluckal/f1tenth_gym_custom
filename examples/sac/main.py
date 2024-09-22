@@ -128,6 +128,15 @@ def register_lunarlander(config=1):
 
     return env, eval_batch
 
+def createbipedal(config=1):
+    from envs.bipedal.walker import BipedalWalker
+    env = BipedalWalker(hardcore=False,config=config)
+
+    if os.path.exists('envs/bipedal/eval_batch.npy'):
+        eval_batch = np.load('envs/bipedal/eval_batch.npy')
+    else:
+        raise Exception("Eval batch not found")
+    return env, eval_batch
 
 try:
     if not os.path.exists('runs'):
@@ -146,6 +155,9 @@ if "f110" in args.env_name:
 
 elif "lunar" in args.env_name:
     env,eval_batch = register_lunarlander(args.config)
+
+elif "bipedal" in args.env_name:
+    env,eval_batch = createbipedal(args.config)
 
 own_policy_name = f"runs/policy_{str('adp') if args.adaptive else str('sta')}_{args.own_policy_idx}_{kl_scale_arg}.pth"
 

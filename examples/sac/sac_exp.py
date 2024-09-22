@@ -54,7 +54,7 @@ def multi(rand_flag=False):
 
 
 def multi2(rand_flag=False):
-    exp_type = "lunar"
+    exp_type = "bipedal"
     kl_scales = []
 
     total_configs = 3
