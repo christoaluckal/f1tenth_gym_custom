@@ -181,9 +181,9 @@ class BipedalWalker(gym.Env, EzPickle):
         if config == 0:
             FRICTION = 2.5
         elif config == 1:
-            FRICTION = 2
+            FRICTION = 2.3
         elif config == 2:
-            FRICTION = 1.5
+            FRICTION = 2.0
         elif config == 3:
             FRICTION = 2.5
             self.hardcore = True
