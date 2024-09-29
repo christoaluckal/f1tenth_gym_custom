@@ -60,7 +60,7 @@ def multi2(rand_flag=False):
     total_configs = 3
 
     if rand_flag:
-        kl_scales = [[0,1],[np.round(np.random.uniform(0,1),1),np.round(np.random.uniform(0,1),1)],[np.round(np.random.uniform(1,10),1),np.round(np.random.uniform(10,100),1)], [np.round(np.random.uniform(100,1000),1),np.round(np.random.uniform(1000,2000),1)]]
+        kl_scales = [[0,1],[np.round(np.random.uniform(1,10),1),np.round(np.random.uniform(10,100),1)], [np.round(np.random.uniform(100,1000),1),np.round(np.random.uniform(1000,2000),1)]]
     else:
         # kl_scales = [[0,0.5],[5,50]]
         kl_scales = [[0,1],[100,600]]
@@ -72,14 +72,14 @@ def multi2(rand_flag=False):
 
         for idx,kl_scale in enumerate(kl_scales):
 
-            exp_1_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[0])} --kl_scale {kl_scale[0]} --warmup 100"+base_exp_str
-            exp_2_1 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[0])} --kl_scale {kl_scale[0]} --warmup 300"+base_exp_str
-            exp_3_1 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[0])} --kl_scale {kl_scale[0]} --warmup 500"+base_exp_str
+            exp_1_1 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[0])} --kl_scale {kl_scale[0]} --warmup 300"+base_exp_str
+            exp_2_1 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[0])} --kl_scale {kl_scale[0]} --warmup 500"+base_exp_str
+            exp_3_1 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[0])} --kl_scale {kl_scale[0]} --warmup 700"+base_exp_str
             
 
-            exp_1_2 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[1])} --kl_scale {kl_scale[1]} --warmup 100"+base_exp_str
-            exp_2_2 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[1])} --kl_scale {kl_scale[1]} --warmup 300"+base_exp_str
-            exp_3_2 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[1])} --kl_scale {kl_scale[1]} --warmup 500"+base_exp_str
+            exp_1_2 = f"python3 main.py --own_policy_idx 1 --config 1 --env-name {exp_type}_1_sta_{idx}_{(kl_scale[1])} --kl_scale {kl_scale[1]} --warmup 300"+base_exp_str
+            exp_2_2 = f"python3 main.py --own_policy_idx 2 --config 2 --env-name {exp_type}_2_sta_{idx}_{(kl_scale[1])} --kl_scale {kl_scale[1]} --warmup 500"+base_exp_str
+            exp_3_2 = f"python3 main.py --own_policy_idx 3 --config 3 --env-name {exp_type}_3_sta_{idx}_{(kl_scale[1])} --kl_scale {kl_scale[1]} --warmup 700"+base_exp_str
 
             processes = [mp.Process(target=run_exp, args=(exp,)) for exp in [exp_1_1, exp_2_1, exp_3_1, exp_1_2, exp_2_2, exp_3_2]]
 

@@ -616,8 +616,8 @@ class BipedalWalker(gym.Env, EzPickle):
             terminated = True
             reward = 100
         
-        if self.steps > 1000:
-            reward = -100
+        if self.steps > 300:
+            # reward = -100
             terminated = True
         
         self.steps += 1
