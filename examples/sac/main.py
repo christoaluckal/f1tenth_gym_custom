@@ -76,12 +76,42 @@ decay = (0.1)**(1/args.decay_ep)
 
 np.random.seed(args.seed)
 
+# def register_f110(idx=1):
+#     import os
+#     import pickle
+#     import gymnasium as gym
+#     from gym.envs.registration import register
+#     from f110_gym.envs.base_classes import Integrator
+#     with open("../maps.pkl","rb") as f:
+#         maps = pickle.load(f)
+        
+#     configs = maps
+
+#     dir_path = os.path.dirname(os.path.realpath(__file__)).split('/')[:-2]
+#     dir_path = '/'.join(dir_path)
+
+#     for i in configs:
+#         base_map = i['map']
+#         base_wpt = i['waypoints']
+#         i['map']=dir_path+base_map
+#         i['waypoints']=dir_path+base_wpt
+
+#     testing_config = configs[1:]
+#     current_config = testing_config[idx-1]
+
+#     register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
+
+#     eval_env = gym.make('f110_gym:f110-cust-v0',config=configs[0], num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+#     env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+
+#     eval_batch = eval_env.get_dummies()
+
+#     return env, eval_batch
+
 def register_f110(idx=1):
-    import os
+    from envs.f110.f110_env import F110_Cust_Env
+    from envs.f110.base_classes import Integrator
     import pickle
-    from gym.envs.registration import register
-    import gym
-    from f110_gym.envs.base_classes import Integrator
     with open("../maps.pkl","rb") as f:
         maps = pickle.load(f)
         
@@ -99,14 +129,13 @@ def register_f110(idx=1):
     testing_config = configs[1:]
     current_config = testing_config[idx-1]
 
-    register('f110_gym:f110-cust-v0', entry_point='f110_gym.envs:F110_Cust_Env', max_episode_steps=10000)
-
-    eval_env = gym.make('f110_gym:f110-cust-v0',config=configs[0], num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
-    env = gym.make('f110_gym:f110-cust-v0',config=current_config, num_agents=1, timestep=0.01, integrator=Integrator.RK4, classic=False)
+    eval_env = F110_Cust_Env(config=configs[0],num_agents=1,timestep=0.01,integrator=Integrator.RK4,classic=False)
+    env = F110_Cust_Env(config=current_config,num_agents=1,timestep=0.01,integrator=Integrator.RK4,classic=False)
 
     eval_batch = eval_env.get_dummies()
 
-    return env, eval_batch
+    return env,eval_batch
+
 
 def register_lunarlander(config=1):
     windpower = 10*config

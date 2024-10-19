@@ -31,7 +31,7 @@ import gymnasium
 from gymnasium import spaces
 
 # base classes
-from f110_gym.envs.base_classes import Simulator, Integrator
+from .base_classes import Simulator, Integrator
 
 # others
 import numpy as np
@@ -532,7 +532,7 @@ class F110_Cust_Env(gymnasium.Env):
             return obs, reward, done, trunc, info
         
         if len(state) != self.state_count:
-            print(f"State length not fff {self.state_count}")
+            print(f"State length not {self.state_count}")
             while len(state) < self.state_count:
                 state.append(0)
             
@@ -713,3 +713,4 @@ class F110_Cust_Env(gymnasium.Env):
                 time.sleep(0.005)
             elif mode == 'human_fast':
                 pass
+
